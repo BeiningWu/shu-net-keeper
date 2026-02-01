@@ -1,7 +1,6 @@
 use lettre::{
-    Message, SmtpTransport, Transport,
-    message::{Mailbox, header::ContentType},
-    transport::smtp::authentication::Credentials,
+    message::header::ContentType, transport::smtp::authentication::Credentials, Message,
+    SmtpTransport, Transport,
 };
 
 use crate::config::SmtpConfigValidated;

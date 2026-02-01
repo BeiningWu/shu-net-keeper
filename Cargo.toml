@@ -1,10 +1,10 @@
 [package]
-name = "ShuAutoLogin"
+name = "shu-net-keeper"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-reqwest = { version = "0.13", features = ["blocking","json"] }
+reqwest = { version = "0.13", features = ["blocking","json","form"] }
 log = "0.4"
 simplelog = "0.12"
 chrono = "0.4" 
@@ -15,6 +15,7 @@ toml = "0.9"
 lettre = "0.11"
 validator = "0.14"
 urlencoding = "2.1"
+regex="1.12"
 
 [dev-dependencies]
 mockito = "1"  

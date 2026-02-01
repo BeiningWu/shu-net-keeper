@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-pub fn get_ip_address() {}
+pub fn get_ip_address() {
+    todo!()
+}
 
 pub fn check_network_connection(url: Option<&str>, timeout_sec: Option<u64>) -> bool {
     let url = url.unwrap_or("https://www.baidu.com");
