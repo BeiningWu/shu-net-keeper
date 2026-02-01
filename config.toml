@@ -1,0 +1,13 @@
+# config.toml
+
+username = "12345678"
+password = "testpass"
+interval = 600
+enabled = true
+
+[smtp]
+server = "smtp.qq.com"
+port = 587
+sender = "test@example.com"
+password = "auth"
+receiver = "test@example.com"
