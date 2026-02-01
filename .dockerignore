@@ -1,0 +1,36 @@
+# Rust 构建产物
+target/
+**/*.rs.bk
+*.pdb
+
+# IDE 文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# 日志和运行时文件
+logs/
+*.log
+
+# 配置文件（应该通过 volume 挂载）
+config.toml
+
+# 文档
+README.md
+LICENSE
+*.md
+
+# Docker 相关
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# 操作系统文件
+.DS_Store
+Thumbs.db

@@ -1,0 +1,85 @@
+# SHU Net Keeper 配置文件示例
+# 复制此文件为 config.toml 并填入你的实际信息
+
+# ==================== 必填配置 ====================
+
+# 校园网账号（通常是学号）
+username = "20221234567"
+
+# 校园网密码
+password = "your_password_here"
+
+# 网络检查间隔（秒）
+# 建议值：30-300 秒之间
+interval = 30
+
+# ==================== 可选配置：邮件通知 ====================
+
+# 取消注释以下配置块来启用邮件通知功能
+# [smtp]
+
+# SMTP 服务器地址
+# server = "smtp.example.com"
+
+# SMTP 端口
+# 常用端口：587 (TLS), 465 (SSL), 25 (无加密)
+# port = 587
+
+# 邮箱账号
+# username = "your_email@example.com"
+
+# 邮箱密码或授权码
+# 注意：QQ邮箱、163邮箱等需要使用授权码，而非登录密码
+# password = "your_email_password_or_auth_code"
+
+# 发件人邮箱（通常与 username 相同）
+# from = "your_email@example.com"
+
+# 收件人邮箱
+# to = "recipient@example.com"
+
+# 是否使用 TLS 加密
+# 587 端口推荐设为 true，465 端口推荐设为 false
+# use_tls = true
+
+# ==================== 常见邮箱配置示例 ====================
+
+# QQ 邮箱示例（需要在 QQ 邮箱设置中开启 SMTP 服务并获取授权码）
+# [smtp]
+# server = "smtp.qq.com"
+# port = 587
+# username = "123456789@qq.com"
+# password = "abcdefghijklmnop"  # 这是授权码，不是 QQ 密码
+# from = "123456789@qq.com"
+# to = "recipient@example.com"
+# use_tls = true
+
+# 163 邮箱示例（需要在 163 邮箱设置中开启 SMTP 服务并获取授权码）
+# [smtp]
+# server = "smtp.163.com"
+# port = 465
+# username = "yourname@163.com"
+# password = "YOUR_AUTH_CODE"  # 这是授权码，不是邮箱登录密码
+# from = "yourname@163.com"
+# to = "recipient@example.com"
+# use_tls = false
+
+# Gmail 示例（需要开启两步验证并生成应用专用密码）
+# [smtp]
+# server = "smtp.gmail.com"
+# port = 587
+# username = "yourname@gmail.com"
+# password = "your_app_password"  # 应用专用密码
+# from = "yourname@gmail.com"
+# to = "recipient@example.com"
+# use_tls = true
+
+# Outlook 示例
+# [smtp]
+# server = "smtp.office365.com"
+# port = 587
+# username = "yourname@outlook.com"
+# password = "your_password"
+# from = "yourname@outlook.com"
+# to = "recipient@example.com"
+# use_tls = true
