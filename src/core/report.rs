@@ -1,0 +1,74 @@
+use crate::constants::ONLINE_INFO_URL;
+use crate::error::{NetworkError, NetworkResult};
+use crate::http_client::HttpClientFactory;
+use serde::Deserialize;
+use tracing::{debug, error, info};
+
+#[derive(Debug, Deserialize)]
+struct OnlineUserInfo {
+    #[serde(rename = "userIp")]
+    user_ip: Option<String>,
+}
+
+pub fn get_host_ip() -> NetworkResult<Option<String>> {
+    debug!("开始获取主机 IP 地址...");
+
+    // 使用工厂创建默认客户端
+    let client = HttpClientFactory::new_default()
+        .map_err(|e| NetworkError::RequestFailed(e.to_string()))?;
+
+    debug!("请求在线用户信息: {}", ONLINE_INFO_URL);
+    let response = client.get(ONLINE_INFO_URL).send().map_err(|e| {
+        error!("请求在线用户信息失败: {}", e);
+        NetworkError::RequestFailed(e.to_string())
+    })?;
+
+    let status = response.status();
+    debug!("收到响应，状态码: {}", status);
+
+    if !status.is_success() {
+        error!("获取在线用户信息失败，状态码: {}", status);
+        return Err(NetworkError::ResponseError {
+            status: status.as_u16(),
+            message: format!("状态码: {}", status),
+        });
+    }
+
+    let body = response.text().map_err(|e| {
+        error!("读取响应内容失败: {}", e);
+        NetworkError::ParseFailed(e.to_string())
+    })?;
+
+    debug!("响应内容: {}", body);
+
+    match serde_json::from_str::<OnlineUserInfo>(&body) {
+        Ok(info) => {
+            if let Some(ip) = &info.user_ip {
+                info!("成功获取主机 IP: {}", ip);
+                Ok(Some(ip.clone()))
+            } else {
+                debug!("响应中没有 userIp 字段");
+                Ok(None)
+            }
+        }
+        Err(e) => {
+            error!("解析 JSON 响应失败: {}", e);
+            Err(NetworkError::ParseFailed(e.to_string()))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_host_ip() {
+        let result = get_host_ip();
+        match result {
+            Ok(Some(ip)) => println!("获取到 IP: {}", ip),
+            Ok(None) => println!("未获取到 IP"),
+            Err(e) => println!("获取 IP 失败: {:?}", e),
+        }
+    }
+}

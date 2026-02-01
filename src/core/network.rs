@@ -1,21 +1,21 @@
+use crate::constants::{HEALTH_CHECK_URL, NETWORK_CHECK_RETRIES, NETWORK_CHECK_TIMEOUT_SECS};
 use crate::error::{NetworkError, NetworkResult};
+use crate::http_client::HttpClientFactory;
 use std::time::Duration;
 use tracing::{debug, warn};
 
-pub fn check_network_connection(url: Option<&str>, timeout_sec: Option<u64>) -> NetworkResult<()> {
-    let url = url.unwrap_or("https://www.baidu.com");
-    let timeout_sec = timeout_sec.unwrap_or(5);
-    let retries = 5;
+pub fn check_network_connection(
+    url: Option<&str>,
+    timeout_sec: Option<u64>,
+) -> NetworkResult<()> {
+    let url = url.unwrap_or(HEALTH_CHECK_URL);
+    let timeout_sec = timeout_sec.unwrap_or(NETWORK_CHECK_TIMEOUT_SECS);
+    let retries = NETWORK_CHECK_RETRIES;
 
     debug!("检查网络连接，目标: {}, 超时: {}秒", url, timeout_sec);
 
-    // 设置超时时间
-    let timeout = Duration::from_secs(timeout_sec);
-
-    // 创建 HTTP 客户端
-    let client = reqwest::blocking::Client::builder()
-        .timeout(timeout)
-        .build()
+    // 使用工厂创建网络检查客户端
+    let client = HttpClientFactory::new_network_check(timeout_sec)
         .map_err(|e| NetworkError::ConnectionFailed(e.to_string()))?;
 
     for attempt in 1..=retries {

@@ -1,11 +1,8 @@
+use crate::constants::{LOGIN_INDEX, LOGIN_URL, REDIRECT_URL};
 use crate::error::{LoginError, LoginResult};
-use reqwest::blocking::Client;
-use reqwest::header::HeaderMap;
+use crate::http_client::HttpClientFactory;
 use std::collections::HashMap;
-use std::time::Duration;
 use tracing::{debug, error, info, warn};
-
-const LOGIN_URL: &str = "http://10.10.9.9/eportal/InterFace.do?method=login";
 
 pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
     info!("开始网络登录，用户: {}", username);
@@ -14,27 +11,14 @@ pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
     let query_string = get_login_query_string()?;
     debug!("查询字符串获取成功");
 
-    // 创建请求头
-    debug!("创建浏览器请求头...");
-    let mut headers = create_browser_headers()?;
+    // 创建登录客户端，使用工厂方法
+    let referer = format!("{}?{}", LOGIN_INDEX, &query_string);
+    debug!("创建 HTTP 客户端，Referer: {}", referer);
 
-    // Referer
-    headers.insert(
-        reqwest::header::REFERER,
-        format!("http://10.10.9.9/eportal/index.jsp?{}", &query_string)
-            .parse()
-            .unwrap(),
-    );
-
-    debug!("创建 HTTP 客户端...");
-    let client = Client::builder()
-        .timeout(Duration::from_secs(10))
-        .default_headers(headers)
-        .build()
-        .map_err(|e| {
-            error!("创建 HTTP 客户端失败: {}", e);
-            LoginError::ClientCreationFailed(e.to_string())
-        })?;
+    let client = HttpClientFactory::new_login_client(&referer).map_err(|e| {
+        error!("创建 HTTP 客户端失败: {}", e);
+        LoginError::ClientCreationFailed(e.to_string())
+    })?;
 
     // 构建表单数据
     let mut form_data = HashMap::new();
@@ -48,14 +32,10 @@ pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
     form_data.insert("queryString", &query_string);
 
     debug!("发送登录请求到 {}...", LOGIN_URL);
-    let response = client
-        .post(LOGIN_URL)
-        .form(&form_data)
-        .send()
-        .map_err(|e| {
-            error!("登录请求失败: {}", e);
-            LoginError::RequestFailed(e.to_string())
-        })?;
+    let response = client.post(LOGIN_URL).form(&form_data).send().map_err(|e| {
+        error!("登录请求失败: {}", e);
+        LoginError::RequestFailed(e.to_string())
+    })?;
 
     let status = response.status();
     debug!("收到响应，状态码: {}", status);
@@ -77,45 +57,18 @@ pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
     }
 }
 
-fn create_browser_headers() -> LoginResult<HeaderMap> {
-    let mut headers = reqwest::header::HeaderMap::new();
-
-    // User-Agent
-    headers.insert(
-        reqwest::header::USER_AGENT,
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36"
-            .parse()
-            .unwrap(),
-    );
-
-    // Accept
-    headers.insert(reqwest::header::ACCEPT, "*/*".parse().unwrap());
-
-    // Accept-Encoding
-    headers.insert(
-        reqwest::header::ACCEPT_ENCODING,
-        "gzip, deflate".parse().unwrap(),
-    );
-
-    // Accept-Language
-    headers.insert(
-        reqwest::header::ACCEPT_LANGUAGE,
-        "zh-CN,zh;q=0.9,en;q=0.8".parse().unwrap(),
-    );
-
-    // Host
-    headers.insert(reqwest::header::HOST, "10.10.9.9".parse().unwrap());
-
-    Ok(headers)
-}
-
 fn get_login_query_string() -> LoginResult<String> {
     debug!("开始获取登录查询字符串...");
-    let client = Client::new();
+
+    // 使用工厂创建默认客户端
+    let client = HttpClientFactory::new_default().map_err(|e| {
+        error!("创建 HTTP 客户端失败: {}", e);
+        LoginError::QueryStringFailed(e.to_string())
+    })?;
 
     // 1. 获取重定向到登录页的 URL
     debug!("请求重定向页面...");
-    let response = client.get("http://123.123.123.123/").send().map_err(|e| {
+    let response = client.get(REDIRECT_URL).send().map_err(|e| {
         error!("请求重定向页面失败: {}", e);
         LoginError::QueryStringFailed(e.to_string())
     })?;
@@ -172,14 +125,14 @@ fn extract_query_string(url: &str) -> LoginResult<String> {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
+
     #[test]
     fn test_get_login_url() {
-        let client = Client::new();
+        let client = HttpClientFactory::new_default().unwrap();
 
         let response = client
-            .get("http://123.123.123.123/")
+            .get(REDIRECT_URL)
             .send()
             .map_err(|e| format!("请求失败: {}", e))
             .unwrap();
