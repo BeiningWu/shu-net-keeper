@@ -1,7 +1,9 @@
+use crate::error::{ConfigError, ConfigResult, ValidationError};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+use tracing::{debug, error, info};
 use validator::validate_email;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -53,46 +55,54 @@ pub struct SmtpConfigValidated {
 }
 
 impl SmtpConfig {
-    pub fn validate_if_enabled(&self) -> Result<SmtpConfigValidated, String> {
+    pub fn validate_if_enabled(&self) -> ConfigResult<SmtpConfigValidated> {
         // 验证服务器
-        let server = self.server.as_ref().ok_or("SMTP 已启用但未配置服务器")?;
+        let server = self
+            .server
+            .as_ref()
+            .ok_or_else(|| ValidationError::MissingField("SMTP 服务器".to_string()))?;
 
         if server.is_empty() {
-            return Err("SMTP 服务器不能为空".to_string());
+            return Err(ValidationError::EmptyField("SMTP 服务器".to_string()).into());
         }
 
         // 验证端口
-        let port = self.port.ok_or("SMTP 已启用但未配置端口号")?;
+        let port = self
+            .port
+            .ok_or_else(|| ValidationError::MissingField("SMTP 端口".to_string()))?;
 
         if port == 0 {
-            return Err("SMTP 端口不能为 0".to_string());
+            return Err(ValidationError::InvalidPort(port).into());
         }
 
         // 验证发件人邮箱
         let sender = self
             .sender
             .as_ref()
-            .ok_or("SMTP 已启用但未配置发件人邮箱")?;
+            .ok_or_else(|| ValidationError::MissingField("发件人邮箱".to_string()))?;
 
         if !validate_email(sender) {
-            return Err(format!("sender格式不正确: {}", sender));
+            return Err(ValidationError::InvalidEmail(sender.clone()).into());
         }
 
         // 验证密码
-        let password = self.password.as_ref().ok_or("SMTP 已启用但未配置密码")?;
+        let password = self
+            .password
+            .as_ref()
+            .ok_or_else(|| ValidationError::MissingField("SMTP 密码".to_string()))?;
 
         if password.is_empty() {
-            return Err("邮箱密码不能为空".to_string());
+            return Err(ValidationError::EmptyField("SMTP 密码".to_string()).into());
         }
 
         // 验证接收邮箱
         let receiver = self
             .receiver
             .as_ref()
-            .ok_or("SMTP 已启用但未配置接收邮箱")?;
+            .ok_or_else(|| ValidationError::MissingField("接收邮箱".to_string()))?;
 
         if !validate_email(receiver) {
-            return Err(format!("receiver格式不正确: {}", receiver));
+            return Err(ValidationError::InvalidEmail(receiver.clone()).into());
         }
 
         Ok(SmtpConfigValidated {
@@ -115,61 +125,91 @@ fn get_config_path() -> PathBuf {
     }
 }
 
-pub fn load_config() -> Result<APPConfigValidated, String> {
+pub fn load_config() -> ConfigResult<APPConfigValidated> {
     let config_path = get_config_path();
 
+    debug!("配置文件路径: {}", config_path.display());
+
     if !config_path.exists() {
-        return Err(format!(
-            "配置文件不存在: {}\n请先运行 --init 创建配置文件",
-            config_path.display()
-        ));
+        error!("配置文件不存在: {}", config_path.display());
+        return Err(ConfigError::FileNotFound {
+            path: config_path.display().to_string(),
+        });
     }
 
-    let content =
-        fs::read_to_string(&config_path).map_err(|e| format!("读取配置文件失败: {}", e))?;
+    debug!("正在读取配置文件...");
+    let content = fs::read_to_string(&config_path).map_err(|e| {
+        error!("读取配置文件失败: {}", e);
+        ConfigError::ReadFailed(e.to_string())
+    })?;
 
-    let config: APPConfig =
-        toml::from_str(&content).map_err(|e| format!("解析配置文件失败: {}", e))?;
+    debug!("正在解析配置文件...");
+    let config: APPConfig = toml::from_str(&content).map_err(|e| {
+        error!("解析配置文件失败: {}", e);
+        ConfigError::ParseFailed(e.to_string())
+    })?;
 
+    info!("配置文件解析成功，正在验证...");
     validate_config(&config)
 }
 
-fn validate_config(config: &APPConfig) -> Result<APPConfigValidated, String> {
+fn validate_config(config: &APPConfig) -> ConfigResult<APPConfigValidated> {
+    debug!("开始验证配置...");
+
     // 验证用户名
     if config.username.len() != 8 {
-        return Err(format!(
-            "配置错误: 用户名必须是8位，当前为{}位",
+        error!(
+            "用户名长度验证失败: 期望8位，实际{}位",
             config.username.len()
-        ));
+        );
+        return Err(ValidationError::InvalidUsername(format!(
+            "用户名必须是8位，当前为{}位",
+            config.username.len()
+        ))
+        .into());
     }
 
     if !config.username.chars().all(|c| c.is_ascii_digit()) {
-        return Err("配置错误: 用户名必须全部是数字".to_string());
+        error!("用户名格式验证失败: 包含非数字字符");
+        return Err(ValidationError::InvalidUsername("用户名必须全部是数字".to_string()).into());
     }
+
+    debug!("用户名验证通过: {}", config.username);
 
     // 验证密码
     if config.password.is_empty() {
-        return Err("配置错误: 密码不能为空".to_string());
+        error!("密码验证失败: 密码为空");
+        return Err(ValidationError::EmptyField("密码".to_string()).into());
     }
+
+    debug!("密码验证通过");
 
     // ✅ 关键逻辑：根据 smtp_enabled 决定是否验证 SMTP
     let validated_smtp = if config.smtp_enabled {
+        info!("SMTP 已启用，验证 SMTP 配置...");
         // ✅ 启用了 SMTP，必须验证
         match &config.smtp {
             Some(smtp) => {
                 // 验证 SMTP 配置
                 let validated = smtp.validate_if_enabled()?;
+                info!("SMTP 配置验证通过");
                 Some(validated)
             }
             None => {
                 // ❌ 启用了但没有配置 SMTP
-                return Err("SMTP 已启用但未配置 [smtp] 部分".to_string());
+                error!("SMTP 已启用但未配置 [smtp] 部分");
+                return Err(ConfigError::SmtpConfig(
+                    "SMTP 已启用但未配置 [smtp] 部分".to_string(),
+                ));
             }
         }
     } else {
+        info!("SMTP 未启用，跳过邮件通知");
         // ✅ 未启用 SMTP，返回 None
         None
     };
+
+    info!("配置验证完成");
 
     Ok(APPConfigValidated {
         username: config.username.clone(),
