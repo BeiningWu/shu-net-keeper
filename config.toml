@@ -3,7 +3,7 @@
 username = "12345678"
 password = "testpass"
 interval = 600
-enabled = true
+smtp_enabled = true
 
 [smtp]
 server = "smtp.qq.com"

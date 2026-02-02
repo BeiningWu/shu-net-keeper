@@ -35,14 +35,16 @@ password = "your_password"
 # 可选：检查间隔（秒），默认 30 秒
 interval = 30
 
-# 可选：SMTP 邮件通知配置
+# 可选：是否启用 SMTP 邮件通知
+smtp_enabled = false
+
+# 可选：SMTP 邮件通知配置（当 smtp_enabled = true 时需要配置）
 [smtp]
-server = "smtp.example.com"    # SMTP 服务器地址
-port = 465                      # SMTP 端口（推荐使用 465）
-username = "your_email@example.com"
-password = "your_email_password"
-from = "your_email@example.com"
-to = "recipient@example.com"
+server = "smtp.example.com"       # SMTP 服务器地址
+port = 465                        # SMTP 端口（推荐使用 465）
+sender = "your_email@example.com" # 发件人邮箱
+password = "your_email_password"  # 邮箱密码或授权码
+receiver = "recipient@example.com" # 收件人邮箱
 ```
 
 ### 配置示例
@@ -59,14 +61,14 @@ interval = 60
 username = "20221234567"
 password = "mypassword123"
 interval = 30
+smtp_enabled = true
 
 [smtp]
 server = "smtp.qq.com"
 port = 465
-username = "123456789@qq.com"
+sender = "123456789@qq.com"
 password = "授权码"
-from = "123456789@qq.com"
-to = "notify@example.com"
+receiver = "notify@example.com"
 ```
 
 ## 部署方式
