@@ -7,7 +7,7 @@ enabled = true
 
 [smtp]
 server = "smtp.qq.com"
-port = 587
+port = 465
 sender = "test@example.com"
 password = "auth"
 receiver = "test@example.com"

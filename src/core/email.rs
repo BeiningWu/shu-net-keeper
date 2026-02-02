@@ -48,14 +48,28 @@ fn send_email_with_config(
     debug!("配置 SMTP 传输...");
     let creds = Credentials::new(username.clone(), password.clone());
 
-    let mailer = SmtpTransport::relay(&server)
-        .map_err(|e| {
-            error!("连接 SMTP 服务器失败 {}: {}", server, e);
-            EmailError::SmtpConnectionFailed(format!("{}:{}", server, smtp.port))
-        })?
-        .port(smtp.port)
-        .credentials(creds)
-        .build();
+    // 465端口使用隐式SSL，587端口使用STARTTLS
+    let mailer = if smtp.port == 465 {
+        debug!("使用 SSL 连接（端口 465）");
+        SmtpTransport::relay(&server)
+            .map_err(|e| {
+                error!("连接 SMTP 服务器失败 {}: {}", server, e);
+                EmailError::SmtpConnectionFailed(format!("{}:{}", server, smtp.port))
+            })?
+            .port(smtp.port)
+            .credentials(creds)
+            .build()
+    } else {
+        debug!("使用 STARTTLS 连接（端口 {}）", smtp.port);
+        SmtpTransport::relay(&server)
+            .map_err(|e| {
+                error!("连接 SMTP 服务器失败 {}: {}", server, e);
+                EmailError::SmtpConnectionFailed(format!("{}:{}", server, smtp.port))
+            })?
+            .port(smtp.port)
+            .credentials(creds)
+            .build()
+    };
 
     debug!("SMTP 传输配置完成");
 
@@ -120,7 +134,7 @@ mod tests {
         // TODO: 请填写 SMTP 配置信息
         let smtp_config = SmtpConfigValidated {
             server: "smtp.example.com".to_string(),
-            port: 587,
+            port: 465,
             sender: "your-email@example.com".to_string(),
             password: "your-smtp-password".to_string(),
             receiver: "recipient@example.com".to_string(),

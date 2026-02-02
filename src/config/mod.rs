@@ -16,7 +16,7 @@ mod tests {
     fn test_smtp_valid() {
         let smtp = SmtpConfig {
             server: Some("smtp.qq.com".to_string()),
-            port: Some(587),
+            port: Some(465),
             sender: Some("test@qq.com".to_string()),
             password: Some("auth_code".to_string()),
             receiver: Some("notify@example.com".to_string()),
@@ -37,7 +37,7 @@ mod tests {
     fn test_smtp_invalid_email() {
         let smtp = SmtpConfig {
             server: Some("smtp.qq.com".to_string()),
-            port: Some(587),
+            port: Some(465),
             sender: Some("not_an_email".to_string()), // ❌ 无效
             password: Some("auth".to_string()),
             receiver: Some("notify@example.com".to_string()),
@@ -58,7 +58,7 @@ mod tests {
     fn test_smtp_missing_field() {
         let smtp = SmtpConfig {
             server: None, // ❌ 缺失
-            port: Some(587),
+            port: Some(465),
             sender: Some("test@qq.com".to_string()),
             password: Some("auth".to_string()),
             receiver: Some("test@example.com".to_string()),
@@ -122,7 +122,7 @@ mod tests {
             smtp_enabled: true,
             smtp: Some(SmtpConfig {
                 server: Some("smtp.qq.com".to_string()),
-                port: Some(587),
+                port: Some(465),
                 sender: Some("test@qq.com".to_string()),
                 password: Some("auth".to_string()),
                 receiver: Some("notify@example.com".to_string()),
@@ -135,7 +135,7 @@ mod tests {
 
         let smtp = validated.smtp.unwrap();
         assert_eq!(smtp.server, "smtp.qq.com");
-        assert_eq!(smtp.port, 587);
+        assert_eq!(smtp.port, 465);
     }
 
     #[test]

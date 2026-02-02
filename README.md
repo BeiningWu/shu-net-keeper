@@ -38,12 +38,11 @@ interval = 30
 # 可选：SMTP 邮件通知配置
 [smtp]
 server = "smtp.example.com"    # SMTP 服务器地址
-port = 587                      # SMTP 端口（常用：587/465/25）
+port = 465                      # SMTP 端口（推荐使用 465）
 username = "your_email@example.com"
 password = "your_email_password"
 from = "your_email@example.com"
 to = "recipient@example.com"
-use_tls = true                  # 是否使用 TLS（587端口推荐 true，465端口推荐 false）
 ```
 
 ### 配置示例
@@ -63,12 +62,11 @@ interval = 30
 
 [smtp]
 server = "smtp.qq.com"
-port = 587
+port = 465
 username = "123456789@qq.com"
 password = "授权码"
 from = "123456789@qq.com"
 to = "notify@example.com"
-use_tls = true
 ```
 
 ## 部署方式
@@ -371,7 +369,6 @@ logs/
 - 确认 SMTP 服务器地址和端口正确
 - 检查邮箱密码（部分邮箱需要使用授权码，而非登录密码）
 - 确认邮箱已开启 SMTP 服务
-- 检查 `use_tls` 设置是否与端口匹配
 
 ### 问题：Docker 容器无法连接网络
 
@@ -381,12 +378,12 @@ logs/
 
 ## 常见邮箱 SMTP 配置
 
-| 邮箱服务商 | SMTP 服务器 | 端口 | use_tls | 备注 |
-|-----------|------------|------|---------|------|
-| QQ 邮箱 | smtp.qq.com | 587 | true | 需要使用授权码 |
-| 163 邮箱 | smtp.163.com | 465 | false | 需要使用授权码 |
-| Gmail | smtp.gmail.com | 587 | true | 需要开启两步验证并使用应用专用密码 |
-| Outlook | smtp.office365.com | 587 | true | 直接使用邮箱密码 |
+| 邮箱服务商 | SMTP 服务器 | 端口 | 备注 |
+|-----------|------------|------|------|
+| QQ 邮箱 | smtp.qq.com | 465 | 需要使用授权码 |
+| 163 邮箱 | smtp.163.com | 465 | 需要使用授权码 |
+| Gmail | smtp.gmail.com | 465 | 需要开启两步验证并使用应用专用密码 |
+| Outlook | smtp.office365.com | 465 | 直接使用邮箱密码 |
 
 ## 安全建议
 

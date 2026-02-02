@@ -22,8 +22,8 @@ interval = 30
 # server = "smtp.example.com"
 
 # SMTP 端口
-# 常用端口：587 (TLS), 465 (SSL), 25 (无加密)
-# port = 587
+# 推荐使用 465 端口
+# port = 465
 
 # 邮箱账号
 # username = "your_email@example.com"
@@ -38,21 +38,16 @@ interval = 30
 # 收件人邮箱
 # to = "recipient@example.com"
 
-# 是否使用 TLS 加密
-# 587 端口推荐设为 true，465 端口推荐设为 false
-# use_tls = true
-
 # ==================== 常见邮箱配置示例 ====================
 
 # QQ 邮箱示例（需要在 QQ 邮箱设置中开启 SMTP 服务并获取授权码）
 # [smtp]
 # server = "smtp.qq.com"
-# port = 587
+# port = 465
 # username = "123456789@qq.com"
 # password = "abcdefghijklmnop"  # 这是授权码，不是 QQ 密码
 # from = "123456789@qq.com"
 # to = "recipient@example.com"
-# use_tls = true
 
 # 163 邮箱示例（需要在 163 邮箱设置中开启 SMTP 服务并获取授权码）
 # [smtp]
@@ -62,24 +57,21 @@ interval = 30
 # password = "YOUR_AUTH_CODE"  # 这是授权码，不是邮箱登录密码
 # from = "yourname@163.com"
 # to = "recipient@example.com"
-# use_tls = false
 
 # Gmail 示例（需要开启两步验证并生成应用专用密码）
 # [smtp]
 # server = "smtp.gmail.com"
-# port = 587
+# port = 465
 # username = "yourname@gmail.com"
 # password = "your_app_password"  # 应用专用密码
 # from = "yourname@gmail.com"
 # to = "recipient@example.com"
-# use_tls = true
 
 # Outlook 示例
 # [smtp]
 # server = "smtp.office365.com"
-# port = 587
+# port = 465
 # username = "yourname@outlook.com"
 # password = "your_password"
 # from = "yourname@outlook.com"
 # to = "recipient@example.com"
-# use_tls = true
