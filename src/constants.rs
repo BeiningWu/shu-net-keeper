@@ -3,7 +3,6 @@ pub const CAMPUS_GATEWAY: &str = "http://10.10.9.9";
 pub const LOGIN_URL: &str = "http://10.10.9.9/eportal/InterFace.do?method=login";
 pub const LOGIN_INDEX: &str = "http://10.10.9.9/eportal/index.jsp";
 pub const ONLINE_INFO_URL: &str = "http://10.10.9.9/eportal/InterFace.do?method=getOnlineUserInfo";
-pub const REDIRECT_URL: &str = "http://123.123.123.123/";
 pub const HEALTH_CHECK_URL: &str = "https://www.baidu.com";
 
 // 超时设置（秒）

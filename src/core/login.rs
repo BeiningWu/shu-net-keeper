@@ -1,4 +1,4 @@
-use crate::constants::{LOGIN_INDEX, LOGIN_URL, REDIRECT_URL};
+use crate::constants::{CAMPUS_GATEWAY, LOGIN_INDEX, LOGIN_URL};
 use crate::error::{LoginError, LoginResult};
 use crate::http_client::HttpClientFactory;
 use std::collections::HashMap;
@@ -32,10 +32,14 @@ pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
     form_data.insert("queryString", &query_string);
 
     debug!("发送登录请求到 {}...", LOGIN_URL);
-    let response = client.post(LOGIN_URL).form(&form_data).send().map_err(|e| {
-        error!("登录请求失败: {}", e);
-        LoginError::RequestFailed(e.to_string())
-    })?;
+    let response = client
+        .post(LOGIN_URL)
+        .form(&form_data)
+        .send()
+        .map_err(|e| {
+            error!("登录请求失败: {}", e);
+            LoginError::RequestFailed(e.to_string())
+        })?;
 
     let status = response.status();
     debug!("收到响应，状态码: {}", status);
@@ -60,43 +64,49 @@ pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
 fn get_login_query_string() -> LoginResult<String> {
     debug!("开始获取登录查询字符串...");
 
-    // 使用工厂创建默认客户端
+    // 使用默认客户端（会自动跟随重定向）访问校园网关
     let client = HttpClientFactory::new_default().map_err(|e| {
         error!("创建 HTTP 客户端失败: {}", e);
         LoginError::QueryStringFailed(e.to_string())
     })?;
 
-    // 1. 获取重定向到登录页的 URL
-    debug!("请求重定向页面...");
-    let response = client.get(REDIRECT_URL).send().map_err(|e| {
-        error!("请求重定向页面失败: {}", e);
+    // 1. 访问校园网关，让客户端自动跟随重定向链
+    debug!("访问校园网关 {}，跟随重定向...", CAMPUS_GATEWAY);
+    let response = client.get(CAMPUS_GATEWAY).send().map_err(|e| {
+        error!("访问校园网关失败: {}", e);
         LoginError::QueryStringFailed(e.to_string())
     })?;
 
+    // 2. 获取最终URL（跟随所有重定向后的URL）
+    let final_url = response.url().as_str();
+    debug!("最终 URL: {}", final_url);
+
+    // 3. 读取HTML内容
     debug!("读取 HTML 响应...");
     let html = response.text().map_err(|e| {
         error!("读取响应失败: {}", e);
         LoginError::QueryStringFailed(e.to_string())
     })?;
 
-    // 2. 解析出 URL
-    debug!("从脚本中提取 URL...");
-    let url = extract_url_from_script(&html)?;
-    debug!("提取到的 URL: {}", url);
+    // 4. 从HTML中提取JavaScript重定向的URL
+    debug!("从 HTML 中提取登录页 URL...");
+    let login_url = extract_url_from_script(&html)?;
+    debug!("提取到的登录 URL: {}", login_url);
 
-    // 3. 提取 queryString
-    let query_string = extract_query_string(&url)?;
+    // 5. 提取 queryString
+    let query_string = extract_query_string(&login_url)?;
     debug!("提取到的查询字符串长度: {}", query_string.len());
 
-    // 4. URL 编码
+    // 注意：不需要额外 URL 编码，因为 reqwest 的 .form() 方法会自动处理编码
+    // 但是服务器期望收到的是编码后的完整查询字符串
     let encoded = urlencoding::encode(&query_string);
     debug!("查询字符串编码完成");
 
     Ok(encoded.to_string())
 }
 
+/// 从HTML脚本中提取重定向URL
 fn extract_url_from_script(html: &str) -> LoginResult<String> {
-    // 方法 1: 使用正则表达式
     use regex::Regex;
 
     let re = Regex::new(r"location\.href='([^']+)'").map_err(|e| {
@@ -106,9 +116,17 @@ fn extract_url_from_script(html: &str) -> LoginResult<String> {
 
     if let Some(caps) = re.captures(html) {
         if let Some(url) = caps.get(1) {
-            debug!("成功提取登录页 URL");
+            debug!("成功从 HTML 中提取登录页 URL");
             return Ok(url.as_str().to_string());
         }
+    }
+
+    // 如果没有找到JavaScript重定向，检查是否已经在登录成功页面
+    if html.contains("success") || html.contains("成功") {
+        warn!("HTML 中包含成功标识，可能已经登录");
+        return Err(LoginError::QueryStringFailed(
+            "页面显示已登录或成功".to_string(),
+        ));
     }
 
     warn!("未在 HTML 中找到登录页 URL");
@@ -129,22 +147,37 @@ mod tests {
 
     #[test]
     fn test_get_login_url() {
+        // 使用默认客户端（会自动跟随重定向）
         let client = HttpClientFactory::new_default().unwrap();
 
+        // 访问校园网关，让客户端自动跟随重定向
         let response = client
-            .get(REDIRECT_URL)
+            .get(CAMPUS_GATEWAY)
             .send()
             .map_err(|e| format!("请求失败: {}", e))
             .unwrap();
 
-        let html = response
-            .text()
-            .map_err(|e| format!("重定向登录页url读取失败: {}", e))
-            .unwrap();
+        let final_url = response.url().as_str();
+        println!("最终 URL: {}", final_url);
+        println!("状态码: {:?}", response.status());
 
-        let url = extract_url_from_script(&html).unwrap();
-        let query_string = extract_query_string(&url).unwrap();
-        println!("{}", query_string);
+        // 读取HTML内容
+        let html = response.text().unwrap();
+        println!("HTML 长度: {} 字节", html.len());
+
+        // 尝试从HTML中提取登录URL
+        match extract_url_from_script(&html) {
+            Ok(login_url) => {
+                println!("提取到的登录 URL: {}", login_url);
+                if let Ok(query_string) = extract_query_string(&login_url) {
+                    println!("查询字符串: {}", query_string);
+                }
+            }
+            Err(e) => {
+                println!("提取登录 URL 失败: {}", e);
+                println!("HTML 内容片段: {}", &html[..html.len().min(500)]);
+            }
+        }
     }
 
     #[test]

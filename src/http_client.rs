@@ -40,10 +40,7 @@ impl HttpClientFactory {
     /// 标准浏览器请求头
     fn browser_headers() -> HeaderMap {
         let mut headers = HeaderMap::new();
-        headers.insert(
-            reqwest::header::USER_AGENT,
-            USER_AGENT.parse().unwrap(),
-        );
+        headers.insert(reqwest::header::USER_AGENT, USER_AGENT.parse().unwrap());
         headers.insert(reqwest::header::ACCEPT, "*/*".parse().unwrap());
         headers.insert(
             reqwest::header::ACCEPT_ENCODING,
