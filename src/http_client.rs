@@ -12,6 +12,7 @@ impl HttpClientFactory {
         Client::builder()
             .timeout(Duration::from_secs(HTTP_TIMEOUT_SECS))
             .user_agent(USER_AGENT)
+            .danger_accept_invalid_certs(true) // 接受自签名证书（校园网内网环境）
             .build()
     }
 
@@ -20,6 +21,7 @@ impl HttpClientFactory {
         Client::builder()
             .timeout(Duration::from_secs(timeout_secs))
             .user_agent(USER_AGENT)
+            .danger_accept_invalid_certs(true) // 接受自签名证书（校园网内网环境）
             .build()
     }
 
@@ -34,6 +36,7 @@ impl HttpClientFactory {
         Client::builder()
             .timeout(Duration::from_secs(HTTP_TIMEOUT_SECS))
             .default_headers(headers)
+            .danger_accept_invalid_certs(true) // 接受自签名证书（校园网内网环境）
             .build()
     }
 
