@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 const MAX_LOG_LINES: usize = 1024;
 
@@ -170,16 +172,29 @@ pub fn init() -> Result<(), Box<dyn std::error::Error>> {
     // 配置日志级别过滤器
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-    // 初始化 tracing subscriber
-    // 使用 move || file_writer.clone() 来为每次日志输出提供一个新的 writer 实例
-    tracing_subscriber::fmt()
-        .with_env_filter(env_filter)
+    // 文件日志 layer
+    let file_layer = tracing_subscriber::fmt::layer()
         .with_writer(move || file_writer.clone())
         .with_ansi(false) // 文件日志不使用颜色
-        .with_target(false) // 不显示 target
+        .with_target(false)
         .with_thread_ids(false)
         .with_thread_names(false)
-        .with_span_events(FmtSpan::NONE)
+        .with_span_events(FmtSpan::NONE);
+
+    // 终端日志 layer
+    let stdout_layer = tracing_subscriber::fmt::layer()
+        .with_writer(std::io::stdout)
+        .with_ansi(true) // 终端日志使用颜色
+        .with_target(false)
+        .with_thread_ids(false)
+        .with_thread_names(false)
+        .with_span_events(FmtSpan::NONE);
+
+    // 组合两个 layer
+    tracing_subscriber::registry()
+        .with(env_filter)
+        .with(file_layer)
+        .with(stdout_layer)
         .init();
 
     tracing::info!("日志系统初始化成功");

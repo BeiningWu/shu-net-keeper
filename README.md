@@ -51,7 +51,7 @@ receiver = "recipient@example.com" # 收件人邮箱
 
 **基础配置（仅自动登录）**：
 ```toml
-username = "20221234567"
+username = "12345678"
 password = "mypassword123"
 interval = 60
 ```

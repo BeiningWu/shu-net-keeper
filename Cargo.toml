@@ -19,10 +19,8 @@ urlencoding = "2.1"
 regex="1.12"
 thiserror = "2.0"
 gethostname = "0.5"
-rsa = "0.9"
 num-bigint = "0.4"
 num-traits = "0.2"
-hex = "0.4"
 
 [dev-dependencies]
 mockito = "1"  
