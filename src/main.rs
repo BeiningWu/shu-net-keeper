@@ -4,6 +4,7 @@ mod core;
 mod daemon;
 mod error;
 mod logger;
+pub mod rsa;
 
 use error::Result;
 use tracing::{error, info};

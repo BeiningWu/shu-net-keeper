@@ -1,35 +1,65 @@
-use crate::constants::{CAMPUS_GATEWAY, LOGIN_INDEX, LOGIN_URL};
+use crate::constants::{CAMPUS_GATEWAY, LOGIN_INDEX, LOGIN_URL, USER_AGENT};
 use crate::error::{LoginError, LoginResult};
+use crate::rsa::PasswordEncryptor;
 use tracing::{debug, error, info, warn};
 
 pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
     info!("开始网络登录，用户: {}", username);
 
+    // 创建一个共享的 agent，确保 cookie 在整个登录流程中保持一致
+    let agent = ureq::agent();
+
     debug!("获取登录查询字符串...");
-    let query_string = get_login_query_string()?;
+    let query_string = get_login_query_string_with_agent(&agent)?;
     debug!("查询字符串获取成功");
 
-    // 直接创建登录客户端
-    let referer = format!("{}?{}", LOGIN_INDEX, &query_string);
-    debug!("创建 HTTP 客户端，Referer: {}", referer);
+    // 从 queryString 中提取 mac 字段
+    let mac = extract_mac_from_query_string(&query_string)?;
+    debug!("提取到的 MAC: {}", mac);
 
-    let agent = ureq::agent();
+    // 拼接密码: password + ">" + mac
+    let password_with_mac = format!("{}>{}", password, mac);
+    debug!("拼接后的密码字符串长度: {}", password_with_mac.len());
+
+    // 使用 RSA 加密密码
+    let encryptor = PasswordEncryptor::new().map_err(|e| {
+        error!("创建密码加密器失败: {}", e);
+        LoginError::RequestFailed(e.to_string())
+    })?;
+    let encrypted_password = encryptor
+        .encrypt_password(&password_with_mac)
+        .map_err(|e| {
+            error!("密码加密失败: {}", e);
+            LoginError::RequestFailed(e.to_string())
+        })?;
+    debug!("密码加密成功");
+
+    // 服务器期望 queryString 是预编码的，send_form 会再次编码（双重编码）
+    let encoded_query_string = urlencoding::encode(&query_string).to_string();
+
+    let referer = format!("{}?{}", LOGIN_INDEX, &query_string);
+    debug!("Referer: {}", referer);
 
     // 构建表单数据
     let form_data: &[(&str, &str)] = &[
         ("userId", username),
-        ("password", password),
+        ("password", &encrypted_password),
         ("service", "shu"),
-        ("passwordEncrypt", "false"),
+        ("passwordEncrypt", "true"),
         ("operatorPwd", ""),
         ("operatorUserId", ""),
         ("validcode", ""),
-        ("queryString", &query_string),
+        ("queryString", &encoded_query_string),
     ];
 
     debug!("发送登录请求到 {}...", LOGIN_URL);
     let response = agent
         .post(LOGIN_URL)
+        .set("User-Agent", USER_AGENT)
+        .set("Accept", "*/*")
+        .set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+        .set("Host", "10.10.9.9")
+        .set("Referer", &referer)
         .send_form(form_data)
         .map_err(|e| {
             error!("登录请求失败: {}", e);
@@ -56,11 +86,8 @@ pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
     }
 }
 
-fn get_login_query_string() -> LoginResult<String> {
+fn get_login_query_string_with_agent(agent: &ureq::Agent) -> LoginResult<String> {
     debug!("开始获取登录查询字符串...");
-
-    // 创建 agent（会自动跟随重定向）访问校园网关
-    let agent = ureq::agent();
 
     // 1. 访问校园网关，让客户端自动跟随重定向链
     debug!("访问校园网关 {}，跟随重定向...", CAMPUS_GATEWAY);
@@ -85,16 +112,11 @@ fn get_login_query_string() -> LoginResult<String> {
     let login_url = extract_url_from_script(&html)?;
     debug!("提取到的登录 URL: {}", login_url);
 
-    // 5. 提取 queryString
+    // 5. 提取 queryString（不要预先编码，send_form 会自动处理）
     let query_string = extract_query_string(&login_url)?;
     debug!("提取到的查询字符串长度: {}", query_string.len());
 
-    // 注意：ureq 的 .send_form() 方法会自动处理编码
-    // 但是服务器期望收到的是编码后的完整查询字符串
-    let encoded = urlencoding::encode(&query_string);
-    debug!("查询字符串编码完成");
-
-    Ok(encoded.to_string())
+    Ok(query_string)
 }
 
 /// 从HTML脚本中提取重定向URL
@@ -131,6 +153,20 @@ fn extract_query_string(url: &str) -> LoginResult<String> {
         .nth(1) // 获取 ? 后面的部分
         .map(|s| s.to_string())
         .ok_or_else(|| LoginError::UrlParseFailed("URL 中没有查询参数".to_string()))
+}
+
+/// 从 queryString 中提取 mac 字段
+fn extract_mac_from_query_string(query_string: &str) -> LoginResult<String> {
+    for pair in query_string.split('&') {
+        if let Some((key, value)) = pair.split_once('=') {
+            if key == "mac" {
+                return Ok(value.to_string());
+            }
+        }
+    }
+    Err(LoginError::UrlParseFailed(
+        "queryString 中没有 mac 字段".to_string(),
+    ))
 }
 
 #[cfg(test)]
@@ -173,13 +209,14 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // 需要在校园网环境下手动运行，并设置环境变量
     fn test_login() {
-        let username = "12345678";
-        let password = "password";
-        let result = network_login(username, password);
+        let username = std::env::var("SHU_USERNAME").expect("请设置 SHU_USERNAME 环境变量");
+        let password = std::env::var("SHU_PASSWORD").expect("请设置 SHU_PASSWORD 环境变量");
+        let result = network_login(&username, &password);
         match result {
-            Ok(()) => print!("登陆成功"),
-            Err(_) => print!("登陆失败"),
+            Ok(()) => println!("登录成功"),
+            Err(e) => println!("登录失败: {:?}", e),
         }
     }
 }
