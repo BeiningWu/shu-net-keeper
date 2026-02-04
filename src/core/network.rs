@@ -1,6 +1,5 @@
 use crate::constants::{HEALTH_CHECK_URL, NETWORK_CHECK_RETRIES, NETWORK_CHECK_TIMEOUT_SECS};
 use crate::error::{NetworkError, NetworkResult};
-use crate::http_client::HttpClientFactory;
 use std::time::Duration;
 use tracing::{debug, warn};
 
@@ -14,9 +13,11 @@ pub fn check_network_connection(
 
     debug!("检查网络连接，目标: {}, 超时: {}秒", url, timeout_sec);
 
-    // 使用工厂创建网络检查客户端
-    let client = HttpClientFactory::new_network_check(timeout_sec)
-        .map_err(|e| NetworkError::ConnectionFailed(e.to_string()))?;
+    // 直接创建网络检查客户端
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(timeout_sec))
+        .build()
+        .unwrap();
 
     for attempt in 1..=retries {
         debug!("网络连接检查尝试 {}/{}", attempt, retries);

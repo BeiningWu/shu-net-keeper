@@ -1,6 +1,5 @@
 use crate::constants::ONLINE_INFO_URL;
 use crate::error::{NetworkError, NetworkResult};
-use crate::http_client::HttpClientFactory;
 use serde::Deserialize;
 use tracing::{debug, error, info};
 
@@ -13,9 +12,10 @@ struct OnlineUserInfo {
 pub fn get_host_ip() -> NetworkResult<Option<String>> {
     debug!("开始获取主机 IP 地址...");
 
-    // 使用工厂创建默认客户端
-    let client = HttpClientFactory::new_default()
-        .map_err(|e| NetworkError::RequestFailed(e.to_string()))?;
+    // 直接创建客户端
+    let client = reqwest::blocking::Client::builder()
+        .build()
+        .unwrap();
 
     debug!("请求在线用户信息: {}", ONLINE_INFO_URL);
     let response = client.get(ONLINE_INFO_URL).send().map_err(|e| {

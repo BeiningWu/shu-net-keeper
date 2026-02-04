@@ -1,6 +1,5 @@
 use crate::constants::{CAMPUS_GATEWAY, LOGIN_INDEX, LOGIN_URL};
 use crate::error::{LoginError, LoginResult};
-use crate::http_client::HttpClientFactory;
 use std::collections::HashMap;
 use tracing::{debug, error, info, warn};
 
@@ -11,14 +10,15 @@ pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
     let query_string = get_login_query_string()?;
     debug!("查询字符串获取成功");
 
-    // 创建登录客户端，使用工厂方法
+    // 直接创建登录客户端
     let referer = format!("{}?{}", LOGIN_INDEX, &query_string);
     debug!("创建 HTTP 客户端，Referer: {}", referer);
 
-    let client = HttpClientFactory::new_login_client(&referer).map_err(|e| {
-        error!("创建 HTTP 客户端失败: {}", e);
-        LoginError::ClientCreationFailed(e.to_string())
-    })?;
+    let client = reqwest::blocking::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .no_proxy()
+        .build()
+        .unwrap();
 
     // 构建表单数据
     let mut form_data = HashMap::new();
@@ -64,11 +64,10 @@ pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
 fn get_login_query_string() -> LoginResult<String> {
     debug!("开始获取登录查询字符串...");
 
-    // 使用默认客户端（会自动跟随重定向）访问校园网关
-    let client = HttpClientFactory::new_default().map_err(|e| {
-        error!("创建 HTTP 客户端失败: {}", e);
-        LoginError::QueryStringFailed(e.to_string())
-    })?;
+    // 直接创建客户端（会自动跟随重定向）访问校园网关
+    let client = reqwest::blocking::Client::builder()
+        .build()
+        .unwrap();
 
     // 1. 访问校园网关，让客户端自动跟随重定向链
     debug!("访问校园网关 {}，跟随重定向...", CAMPUS_GATEWAY);
@@ -147,8 +146,10 @@ mod tests {
 
     #[test]
     fn test_get_login_url() {
-        // 使用默认客户端（会自动跟随重定向）
-        let client = HttpClientFactory::new_default().unwrap();
+        // 直接创建客户端（会自动跟随重定向）
+        let client = reqwest::blocking::Client::builder()
+            .build()
+            .unwrap();
 
         // 访问校园网关，让客户端自动跟随重定向
         let response = client

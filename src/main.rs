@@ -3,7 +3,6 @@ mod constants;
 mod core;
 mod daemon;
 mod error;
-mod http_client;
 mod logger;
 
 use error::Result;
