@@ -13,32 +13,35 @@ pub fn check_network_connection(
 
     debug!("检查网络连接，目标: {}, 超时: {}秒", url, timeout_sec);
 
-    // 直接创建网络检查客户端
-    let client = reqwest::blocking::Client::builder()
+    // 创建带超时的 agent
+    let agent = ureq::AgentBuilder::new()
         .timeout(Duration::from_secs(timeout_sec))
-        .build()
-        .unwrap();
+        .build();
 
     for attempt in 1..=retries {
         debug!("网络连接检查尝试 {}/{}", attempt, retries);
 
-        match client.get(url).send() {
+        match agent.get(url).call() {
             Ok(response) => {
-                if response.status().is_success() {
-                    debug!("网络连接正常，状态码: {}", response.status());
+                let status = response.status();
+                if status >= 200 && status < 300 {
+                    debug!("网络连接正常，状态码: {}", status);
                     return Ok(());
                 } else {
-                    debug!("收到响应但状态码异常: {}", response.status());
+                    debug!("收到响应但状态码异常: {}", status);
                     if attempt == retries {
                         return Err(NetworkError::ResponseError {
-                            status: response.status().as_u16(),
-                            message: format!("状态码: {}", response.status()),
+                            status,
+                            message: format!("状态码: {}", status),
                         });
                     }
                 }
             }
             Err(e) => {
-                if e.is_timeout() {
+                let is_timeout = matches!(&e, ureq::Error::Transport(t) if t.kind() == ureq::ErrorKind::Io);
+                let is_connect = matches!(&e, ureq::Error::Transport(t) if matches!(t.kind(), ureq::ErrorKind::ConnectionFailed | ureq::ErrorKind::Dns));
+
+                if is_timeout {
                     debug!("第 {} 次连接尝试超时", attempt);
                     if attempt == retries {
                         return Err(NetworkError::Timeout(format!(
@@ -46,13 +49,13 @@ pub fn check_network_connection(
                             retries
                         )));
                     }
-                } else if e.is_connect() {
+                } else if is_connect {
                     debug!("第 {} 次连接尝试失败: 连接错误", attempt);
                     if attempt == retries {
                         return Err(NetworkError::ConnectionFailed(e.to_string()));
                     }
                 } else {
-                    debug!("第 {} 次连接尝试失败", attempt);
+                    debug!("第 {} 次连接尝试失败: {}", attempt, e);
                     if attempt == retries {
                         return Err(NetworkError::RequestFailed(e.to_string()));
                     }

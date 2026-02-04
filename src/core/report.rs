@@ -12,13 +12,11 @@ struct OnlineUserInfo {
 pub fn get_host_ip() -> NetworkResult<Option<String>> {
     debug!("开始获取主机 IP 地址...");
 
-    // 直接创建客户端
-    let client = reqwest::blocking::Client::builder()
-        .build()
-        .unwrap();
+    // 创建 agent
+    let agent = ureq::agent();
 
     debug!("请求在线用户信息: {}", ONLINE_INFO_URL);
-    let response = client.get(ONLINE_INFO_URL).send().map_err(|e| {
+    let response = agent.get(ONLINE_INFO_URL).call().map_err(|e| {
         error!("请求在线用户信息失败: {}", e);
         NetworkError::RequestFailed(e.to_string())
     })?;
@@ -26,15 +24,15 @@ pub fn get_host_ip() -> NetworkResult<Option<String>> {
     let status = response.status();
     debug!("收到响应，状态码: {}", status);
 
-    if !status.is_success() {
+    if !(status >= 200 && status < 300) {
         error!("获取在线用户信息失败，状态码: {}", status);
         return Err(NetworkError::ResponseError {
-            status: status.as_u16(),
+            status,
             message: format!("状态码: {}", status),
         });
     }
 
-    let body = response.text().map_err(|e| {
+    let body = response.into_string().map_err(|e| {
         error!("读取响应内容失败: {}", e);
         NetworkError::ParseFailed(e.to_string())
     })?;

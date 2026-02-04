@@ -1,6 +1,5 @@
 use crate::constants::{CAMPUS_GATEWAY, LOGIN_INDEX, LOGIN_URL};
 use crate::error::{LoginError, LoginResult};
-use std::collections::HashMap;
 use tracing::{debug, error, info, warn};
 
 pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
@@ -14,28 +13,24 @@ pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
     let referer = format!("{}?{}", LOGIN_INDEX, &query_string);
     debug!("创建 HTTP 客户端，Referer: {}", referer);
 
-    let client = reqwest::blocking::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .no_proxy()
-        .build()
-        .unwrap();
+    let agent = ureq::agent();
 
     // 构建表单数据
-    let mut form_data = HashMap::new();
-    form_data.insert("userId", username);
-    form_data.insert("password", password);
-    form_data.insert("service", "shu");
-    form_data.insert("passwordEncrypt", "false");
-    form_data.insert("operatorPwd", "");
-    form_data.insert("operatorUserId", "");
-    form_data.insert("validcode", "");
-    form_data.insert("queryString", &query_string);
+    let form_data: &[(&str, &str)] = &[
+        ("userId", username),
+        ("password", password),
+        ("service", "shu"),
+        ("passwordEncrypt", "false"),
+        ("operatorPwd", ""),
+        ("operatorUserId", ""),
+        ("validcode", ""),
+        ("queryString", &query_string),
+    ];
 
     debug!("发送登录请求到 {}...", LOGIN_URL);
-    let response = client
+    let response = agent
         .post(LOGIN_URL)
-        .form(&form_data)
-        .send()
+        .send_form(form_data)
         .map_err(|e| {
             error!("登录请求失败: {}", e);
             LoginError::RequestFailed(e.to_string())
@@ -44,18 +39,18 @@ pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
     let status = response.status();
     debug!("收到响应，状态码: {}", status);
 
-    let body = response.text().map_err(|e| {
+    let body = response.into_string().map_err(|e| {
         error!("读取响应内容失败: {}", e);
         LoginError::ResponseParseFailed(e.to_string())
     })?;
 
-    if status.is_success() {
+    if status >= 200 && status < 300 {
         info!("✓ 登录成功");
         Ok(())
     } else {
         error!("✗ 登录失败，状态码: {}, 响应: {}", status, body);
         Err(LoginError::AuthenticationFailed {
-            status: status.as_u16(),
+            status,
             message: body,
         })
     }
@@ -64,25 +59,23 @@ pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
 fn get_login_query_string() -> LoginResult<String> {
     debug!("开始获取登录查询字符串...");
 
-    // 直接创建客户端（会自动跟随重定向）访问校园网关
-    let client = reqwest::blocking::Client::builder()
-        .build()
-        .unwrap();
+    // 创建 agent（会自动跟随重定向）访问校园网关
+    let agent = ureq::agent();
 
     // 1. 访问校园网关，让客户端自动跟随重定向链
     debug!("访问校园网关 {}，跟随重定向...", CAMPUS_GATEWAY);
-    let response = client.get(CAMPUS_GATEWAY).send().map_err(|e| {
+    let response = agent.get(CAMPUS_GATEWAY).call().map_err(|e| {
         error!("访问校园网关失败: {}", e);
         LoginError::QueryStringFailed(e.to_string())
     })?;
 
     // 2. 获取最终URL（跟随所有重定向后的URL）
-    let final_url = response.url().as_str();
+    let final_url = response.get_url().to_string();
     debug!("最终 URL: {}", final_url);
 
     // 3. 读取HTML内容
     debug!("读取 HTML 响应...");
-    let html = response.text().map_err(|e| {
+    let html = response.into_string().map_err(|e| {
         error!("读取响应失败: {}", e);
         LoginError::QueryStringFailed(e.to_string())
     })?;
@@ -96,7 +89,7 @@ fn get_login_query_string() -> LoginResult<String> {
     let query_string = extract_query_string(&login_url)?;
     debug!("提取到的查询字符串长度: {}", query_string.len());
 
-    // 注意：不需要额外 URL 编码，因为 reqwest 的 .form() 方法会自动处理编码
+    // 注意：ureq 的 .send_form() 方法会自动处理编码
     // 但是服务器期望收到的是编码后的完整查询字符串
     let encoded = urlencoding::encode(&query_string);
     debug!("查询字符串编码完成");
@@ -146,24 +139,22 @@ mod tests {
 
     #[test]
     fn test_get_login_url() {
-        // 直接创建客户端（会自动跟随重定向）
-        let client = reqwest::blocking::Client::builder()
-            .build()
-            .unwrap();
+        // 创建 agent（会自动跟随重定向）
+        let agent = ureq::agent();
 
         // 访问校园网关，让客户端自动跟随重定向
-        let response = client
+        let response = agent
             .get(CAMPUS_GATEWAY)
-            .send()
+            .call()
             .map_err(|e| format!("请求失败: {}", e))
             .unwrap();
 
-        let final_url = response.url().as_str();
+        let final_url = response.get_url().to_string();
         println!("最终 URL: {}", final_url);
         println!("状态码: {:?}", response.status());
 
         // 读取HTML内容
-        let html = response.text().unwrap();
+        let html = response.into_string().unwrap();
         println!("HTML 长度: {} 字节", html.len());
 
         // 尝试从HTML中提取登录URL

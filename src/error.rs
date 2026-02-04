@@ -128,17 +128,30 @@ pub enum ValidationError {
 
 // ==================== From 转换实现 ====================
 
-// 为 reqwest::Error 提供转换
-impl From<reqwest::Error> for AppError {
-    fn from(err: reqwest::Error) -> Self {
-        if err.is_timeout() {
-            AppError::Network(NetworkError::Timeout(err.to_string()))
-        } else if err.is_connect() {
-            AppError::Network(NetworkError::ConnectionFailed(err.to_string()))
-        } else if err.is_request() {
-            AppError::Network(NetworkError::RequestFailed(err.to_string()))
-        } else {
-            AppError::Network(NetworkError::RequestFailed(err.to_string()))
+// 为 ureq::Error 提供转换
+impl From<ureq::Error> for AppError {
+    fn from(err: ureq::Error) -> Self {
+        match &err {
+            ureq::Error::Status(code, _response) => {
+                AppError::Network(NetworkError::ResponseError {
+                    status: *code,
+                    message: err.to_string(),
+                })
+            }
+            ureq::Error::Transport(transport) => {
+                match transport.kind() {
+                    ureq::ErrorKind::ConnectionFailed | ureq::ErrorKind::Dns => {
+                        AppError::Network(NetworkError::ConnectionFailed(err.to_string()))
+                    }
+                    ureq::ErrorKind::Io => {
+                        // IO 错误通常包含超时
+                        AppError::Network(NetworkError::Timeout(err.to_string()))
+                    }
+                    _ => {
+                        AppError::Network(NetworkError::RequestFailed(err.to_string()))
+                    }
+                }
+            }
         }
     }
 }
