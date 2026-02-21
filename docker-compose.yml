@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # TODO: 容器名称，可自定义
     container_name: shu-net-keeper
     restart: unless-stopped
 
@@ -13,6 +14,7 @@ services:
 
     # 挂载配置文件和日志目录
     volumes:
+      # TODO: 确保 config.toml 存在于项目根目录
       - ./config.toml:/app/config.toml:ro  # 只读挂载配置文件
       - ./logs:/app/logs                    # 日志目录
 
@@ -20,21 +22,3 @@ services:
     environment:
       - TZ=Asia/Shanghai                    # 设置时区
       - RUST_LOG=info                       # 日志级别（可选：debug, info, warn, error）
-
-    # 资源限制（可选）
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'      # 限制 CPU 使用率为 50%
-          memory: 128M     # 限制内存使用为 128MB
-        reservations:
-          cpus: '0.1'      # 预留 10% CPU
-          memory: 32M      # 预留 32MB 内存
-
-    # 健康检查
-    healthcheck:
-      test: ["CMD", "pgrep", "-f", "shu-net-keeper"]
-      interval: 60s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
