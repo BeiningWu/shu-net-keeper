@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: Dockerfile
     # 指定目标平台：linux/amd64（x86_64 服务器）或 linux/arm64（ARM64 / Apple Silicon）
-    platform: linux/arm64
+    platform: linux/amd64
     # TODO: 容器名称，可自定义
     container_name: shu-net-keeper
     restart: unless-stopped
