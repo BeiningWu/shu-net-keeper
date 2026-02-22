@@ -2,8 +2,8 @@ use crate::config::SmtpConfigValidated;
 use crate::error::{EmailError, EmailResult};
 use gethostname::gethostname;
 use lettre::{
-    message::header::ContentType, transport::smtp::authentication::Credentials, Message,
-    SmtpTransport, Transport,
+    Message, SmtpTransport, Transport, message::header::ContentType,
+    transport::smtp::authentication::Credentials,
 };
 use tracing::{debug, error, info};
 
@@ -94,9 +94,7 @@ pub fn send_login_notification(
     info!("准备发送登录通知邮件，用户: {}", username);
 
     // 获取本地主机名
-    let hostname = gethostname()
-        .to_string_lossy()
-        .to_string();
+    let hostname = gethostname().to_string_lossy().to_string();
 
     let subject = if ip_changed {
         "校园网登录通知 - IP地址变更"

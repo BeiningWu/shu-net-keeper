@@ -1,7 +1,17 @@
 use crate::constants::{CAMPUS_GATEWAY, LOGIN_INDEX, LOGIN_URL, USER_AGENT};
 use crate::error::{LoginError, LoginResult};
 use crate::rsa::PasswordEncryptor;
+use serde::Deserialize;
 use tracing::{debug, error, info, warn};
+
+/// 登录响应结构体
+#[derive(Debug, Deserialize)]
+struct LoginResponse {
+    #[serde(rename = "result")]
+    result: String,
+    #[serde(rename = "message")]
+    message: Option<String>,
+}
 
 pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
     info!("开始网络登录，用户: {}", username);
@@ -74,14 +84,27 @@ pub fn network_login(username: &str, password: &str) -> LoginResult<()> {
         LoginError::ResponseParseFailed(e.to_string())
     })?;
 
-    if status >= 200 && status < 300 {
+    debug!("登录响应内容: {}", body);
+
+    // 解析 JSON 响应
+    let login_response: LoginResponse = serde_json::from_str(&body).map_err(|e| {
+        error!("解析登录响应失败: {}", e);
+        LoginError::ResponseParseFailed(e.to_string())
+    })?;
+
+    // 根据 result 字段判断登录是否成功
+    if login_response.result == "success" {
         info!("✓ 登录成功");
         Ok(())
     } else {
-        error!("✗ 登录失败，状态码: {}, 响应: {}", status, body);
+        // failed 或其他结果都视为登录失败
+        let error_message = login_response
+            .message
+            .unwrap_or_else(|| "未知错误".to_string());
+        error!("✗ 登录失败: {}", error_message);
         Err(LoginError::AuthenticationFailed {
             status,
-            message: body,
+            message: error_message,
         })
     }
 }
@@ -211,8 +234,8 @@ mod tests {
     #[test]
     #[ignore] // 需要在校园网环境下手动运行，并设置环境变量
     fn test_login() {
-        let username = std::env::var("SHU_USERNAME").expect("请设置 SHU_USERNAME 环境变量");
-        let password = std::env::var("SHU_PASSWORD").expect("请设置 SHU_PASSWORD 环境变量");
+        let username = "SHU_USERNAME".to_string();
+        let password = "SHU_PASSWORD".to_string();
         let result = network_login(&username, &password);
         match result {
             Ok(()) => println!("登录成功"),

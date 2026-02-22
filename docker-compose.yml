@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # 指定目标平台：linux/amd64（x86_64 服务器）或 linux/arm64（ARM64 / Apple Silicon）
+    platform: linux/arm64
     # TODO: 容器名称，可自定义
     container_name: shu-net-keeper
     restart: unless-stopped
@@ -14,8 +16,8 @@ services:
 
     # 挂载配置文件和日志目录
     volumes:
-      # TODO: 确保 config.toml 存在于项目根目录
-      - ./config.toml:/app/config.toml:ro  # 只读挂载配置文件
+      # 确保正确填写config.toml的路径，并不要随意删除。
+      - /Volumes/ZHITAI-Ti600-4TB/shu-net-keeper/config.toml:/app/config.toml:ro  # 只读挂载配置文件
       - ./logs:/app/logs                    # 日志目录
 
     # 环境变量

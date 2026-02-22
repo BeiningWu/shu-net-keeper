@@ -1,9 +1,23 @@
 # 多阶段构建 - 阶段 1: 编译
-FROM rust:1.85 AS builder
+FROM rust:1.90-alpine AS builder
 
-# 安装交叉编译目标和依赖
-RUN rustup target add x86_64-unknown-linux-musl
-RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static pkgconfig
+# Docker 自动注入目标平台架构（amd64 / arm64）
+ARG TARGETARCH
+
+# 安装构建依赖
+RUN apk add --no-cache \
+    musl-dev \
+    openssl-dev \
+    openssl-libs-static \
+    pkgconfig \
+    linux-headers \
+    gcc \
+    make
+
+# 设置 OpenSSL 环境变量（静态链接）
+ENV OPENSSL_LIB_DIR=/usr/lib
+ENV OPENSSL_INCLUDE_DIR=/usr/include/openssl
+ENV OPENSSL_STATIC=1
 
 # 设置工作目录
 WORKDIR /build
@@ -12,11 +26,15 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 
-# 编译项目（使用 musl 目标实现静态链接）
-RUN cargo build --release --target x86_64-unknown-linux-musl
-
-# 验证可执行文件已生成
-RUN ls -lh /build/target/release/x86_64-unknown-linux-musl/shu-net-keeper
+# 根据目标架构选择 Rust target，编译后统一复制到固定路径
+RUN case "$TARGETARCH" in \
+      "amd64") RUST_TARGET="x86_64-unknown-linux-musl" ;; \
+      "arm64") RUST_TARGET="aarch64-unknown-linux-musl" ;; \
+      *) echo "Unsupported TARGETARCH: $TARGETARCH" && exit 1 ;; \
+    esac && \
+    rustup target add "$RUST_TARGET" && \
+    cargo build --release --target "$RUST_TARGET" && \
+    cp "/build/target/$RUST_TARGET/release/shu-net-keeper" /build/shu-net-keeper
 
 # 多阶段构建 - 阶段 2: 运行时最小化镜像
 FROM alpine:latest
@@ -34,8 +52,8 @@ RUN addgroup -g 1000 shunet && \
 # 设置工作目录
 WORKDIR /app
 
-# 从构建阶段复制可执行文件（注意使用 musl 目标路径）
-COPY --from=builder /build/target/release/x86_64-unknown-linux-musl/shu-net-keeper /app/shu-net-keeper
+# 从构建阶段复制可执行文件
+COPY --from=builder /build/shu-net-keeper /app/shu-net-keeper
 
 # 创建日志目录
 RUN mkdir -p /app/logs && \

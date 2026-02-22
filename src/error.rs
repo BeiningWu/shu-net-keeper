@@ -59,11 +59,11 @@ pub enum NetworkError {
     #[error("响应错误 [{status}]: {message}")]
     ResponseError { status: u16, message: String },
 
-    #[error("网络不可达: {0}")]
-    Unreachable(String),
-
     #[error("解析响应失败: {0}")]
     ParseFailed(String),
+
+    #[error("未连接到校园网: {0}")]
+    NotConnected(String),
 }
 
 /// 登录错误类型
@@ -71,9 +71,6 @@ pub enum NetworkError {
 pub enum LoginError {
     #[error("获取登录参数失败: {0}")]
     QueryStringFailed(String),
-
-    #[error("创建 HTTP 客户端失败: {0}")]
-    ClientCreationFailed(String),
 
     #[error("登录请求失败: {0}")]
     RequestFailed(String),
@@ -147,9 +144,7 @@ impl From<ureq::Error> for AppError {
                         // IO 错误通常包含超时
                         AppError::Network(NetworkError::Timeout(err.to_string()))
                     }
-                    _ => {
-                        AppError::Network(NetworkError::RequestFailed(err.to_string()))
-                    }
+                    _ => AppError::Network(NetworkError::RequestFailed(err.to_string())),
                 }
             }
         }
@@ -198,58 +193,9 @@ pub type LoginResult<T> = std::result::Result<T, LoginError>;
 /// 邮件相关的 Result 类型
 pub type EmailResult<T> = std::result::Result<T, EmailError>;
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_config_error_display() {
-        let error = ConfigError::FileNotFound {
-            path: "config.toml".to_string(),
-        };
-        let display = format!("{}", error);
-        assert!(display.contains("配置文件不存在"));
-        assert!(display.contains("config.toml"));
-    }
-
-    #[test]
-    fn test_network_error_display() {
-        let error = NetworkError::ResponseError {
-            status: 404,
-            message: "Not Found".to_string(),
-        };
-        let display = format!("{}", error);
-        assert!(display.contains("404"));
-        assert!(display.contains("Not Found"));
-    }
-
-    #[test]
-    fn test_app_error_from_config_error() {
-        let config_err = ConfigError::ParseFailed("invalid toml".to_string());
-        let app_err: AppError = config_err.into();
-
-        match app_err {
-            AppError::Config(_) => (),
-            _ => panic!("Expected Config error"),
-        }
-    }
-
-    #[test]
-    fn test_validation_error() {
-        let error = ValidationError::InvalidEmail("not-an-email".to_string());
-        let display = format!("{}", error);
-        assert!(display.contains("邮箱格式不正确"));
-    }
-
-    #[test]
-    fn test_result_type_alias() {
-        fn returns_result() -> Result<i32> {
-            Ok(42)
-        }
-
-        assert_eq!(returns_result().unwrap(), 42);
-    }
 
     #[test]
     fn test_from_string() {

@@ -38,7 +38,7 @@ mod tests {
         let smtp = SmtpConfig {
             server: Some("smtp.qq.com".to_string()),
             port: Some(465),
-            sender: Some("not_an_email".to_string()), // ❌ 无效
+            sender: Some("not_an_email".to_string()), // 无效
             password: Some("auth".to_string()),
             receiver: Some("notify@example.com".to_string()),
         };
@@ -57,7 +57,7 @@ mod tests {
     #[test]
     fn test_smtp_missing_field() {
         let smtp = SmtpConfig {
-            server: None, // ❌ 缺失
+            server: None, // 缺失
             port: Some(465),
             sender: Some("test@qq.com".to_string()),
             password: Some("auth".to_string()),
@@ -79,7 +79,7 @@ mod tests {
     fn test_smtp_invalid_port() {
         let smtp = SmtpConfig {
             server: Some("smtp.qq.com".to_string()),
-            port: Some(0), // ❌ 无效端口
+            port: Some(0), // 无效端口
             sender: Some("test@qq.com".to_string()),
             password: Some("auth".to_string()),
             receiver: Some("notify@example.com".to_string()),
@@ -144,8 +144,8 @@ mod tests {
             username: "12345678".to_string(),
             password: "testpass".to_string(),
             interval: 600,
-            smtp_enabled: true, // ❌ 启用了
-            smtp: None,         // ❌ 但没配置
+            smtp_enabled: true, // 启用了
+            smtp: None,         // 但没配置
         };
 
         assert!(validate_config(&config).is_err());
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn test_config_invalid_username_length() {
         let config = APPConfig {
-            username: "123".to_string(), // ❌ 不是8位
+            username: "123".to_string(), // 不是8位
             password: "testpass".to_string(),
             interval: 600,
             smtp_enabled: false,
@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn test_config_invalid_username_format() {
         let config = APPConfig {
-            username: "1234567a".to_string(), // ❌ 包含字母
+            username: "1234567a".to_string(), // 包含字母
             password: "testpass".to_string(),
             interval: 600,
             smtp_enabled: false,
@@ -181,7 +181,7 @@ mod tests {
     fn test_config_empty_password() {
         let config = APPConfig {
             username: "12345678".to_string(),
-            password: "".to_string(), // ❌ 空密码
+            password: "".to_string(), // 空密码
             interval: 600,
             smtp_enabled: false,
             smtp: None,

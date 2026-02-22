@@ -31,8 +31,7 @@ impl FieldValidator {
     }
 
     fn require_port(value: Option<u16>, field_name: &str) -> ConfigResult<u16> {
-        let port = value
-            .ok_or_else(|| ValidationError::MissingField(field_name.to_string()))?;
+        let port = value.ok_or_else(|| ValidationError::MissingField(field_name.to_string()))?;
 
         if port == 0 {
             return Err(ValidationError::InvalidPort(port).into());
@@ -100,8 +99,8 @@ fn validate_password(password: &str) -> ConfigResult<()> {
 }
 
 fn validate_smtp_config(smtp: Option<&SmtpConfig>) -> ConfigResult<SmtpConfigValidated> {
-    let smtp = smtp
-        .ok_or_else(|| ConfigError::SmtpConfig("SMTP 已启用但未配置 [smtp] 部分".to_string()))?;
+    let smtp =
+        smtp.ok_or_else(|| ConfigError::SmtpConfig("SMTP 已启用但未配置 [smtp] 部分".to_string()))?;
 
     Ok(SmtpConfigValidated {
         server: FieldValidator::require_string(&smtp.server, "SMTP 服务器")?,

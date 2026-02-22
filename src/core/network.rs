@@ -1,116 +1,149 @@
-use crate::constants::{HEALTH_CHECK_URL, NETWORK_CHECK_RETRIES, NETWORK_CHECK_TIMEOUT_SECS};
+use crate::constants::ONLINE_INFO_URL;
 use crate::error::{NetworkError, NetworkResult};
-use std::time::Duration;
-use tracing::{debug, warn};
+use serde::Deserialize;
+use tracing::{debug, error, info};
 
-pub fn check_network_connection(
-    url: Option<&str>,
-    timeout_sec: Option<u64>,
-) -> NetworkResult<()> {
-    let url = url.unwrap_or(HEALTH_CHECK_URL);
-    let timeout_sec = timeout_sec.unwrap_or(NETWORK_CHECK_TIMEOUT_SECS);
-    let retries = NETWORK_CHECK_RETRIES;
+/// 在线用户信息
+#[derive(Debug, Deserialize)]
+pub(crate) struct OnlineUserInfo {
+    #[serde(rename = "userIp")]
+    user_ip: Option<String>,
+}
 
-    debug!("检查网络连接，目标: {}, 超时: {}秒", url, timeout_sec);
+/// 查询在线用户信息（网络请求 + 解析）
+/// 返回值：
+/// - Ok(Some(info)): 成功获取到响应（无论是否已登录）
+/// - Err: 网络错误
+fn query_online_info() -> NetworkResult<OnlineUserInfo> {
+    debug!("请求在线用户信息: {}", ONLINE_INFO_URL);
 
-    // 创建带超时的 agent
-    let agent = ureq::AgentBuilder::new()
-        .timeout(Duration::from_secs(timeout_sec))
-        .build();
-
-    for attempt in 1..=retries {
-        debug!("网络连接检查尝试 {}/{}", attempt, retries);
-
-        match agent.get(url).call() {
-            Ok(response) => {
-                let status = response.status();
-                if status >= 200 && status < 300 {
-                    debug!("网络连接正常，状态码: {}", status);
-                    return Ok(());
-                } else {
-                    debug!("收到响应但状态码异常: {}", status);
-                    if attempt == retries {
-                        return Err(NetworkError::ResponseError {
-                            status,
-                            message: format!("状态码: {}", status),
-                        });
-                    }
-                }
-            }
-            Err(e) => {
-                let is_timeout = matches!(&e, ureq::Error::Transport(t) if t.kind() == ureq::ErrorKind::Io);
-                let is_connect = matches!(&e, ureq::Error::Transport(t) if matches!(t.kind(), ureq::ErrorKind::ConnectionFailed | ureq::ErrorKind::Dns));
-
-                if is_timeout {
-                    debug!("第 {} 次连接尝试超时", attempt);
-                    if attempt == retries {
-                        return Err(NetworkError::Timeout(format!(
-                            "连接超时，已重试 {} 次",
-                            retries
-                        )));
-                    }
-                } else if is_connect {
-                    debug!("第 {} 次连接尝试失败: 连接错误", attempt);
-                    if attempt == retries {
-                        return Err(NetworkError::ConnectionFailed(e.to_string()));
-                    }
-                } else {
-                    debug!("第 {} 次连接尝试失败: {}", attempt, e);
-                    if attempt == retries {
-                        return Err(NetworkError::RequestFailed(e.to_string()));
-                    }
-                }
-            }
+    let agent = ureq::agent();
+    let response = agent.get(ONLINE_INFO_URL).call().map_err(|e| {
+        error!("请求在线用户信息失败: {}", e);
+        if is_connection_error(&e) {
+            NetworkError::NotConnected("未连接到校园网".to_string())
+        } else {
+            NetworkError::RequestFailed(e.to_string())
         }
+    })?;
 
-        if attempt < retries {
-            debug!("等待 {} 秒后重试...", timeout_sec);
-            std::thread::sleep(Duration::from_secs(timeout_sec));
-        }
+    let status = response.status();
+    debug!("收到响应，状态码: {}", status);
+
+    if !(status >= 200 && status < 300) {
+        error!("获取在线用户信息失败，状态码: {}", status);
+        return Err(NetworkError::ResponseError {
+            status,
+            message: format!("状态码: {}", status),
+        });
     }
 
-    warn!("网络连接检查失败，已重试 {} 次", retries);
-    Err(NetworkError::Unreachable(format!(
-        "无法连接到 {}，已重试 {} 次",
-        url, retries
-    )))
+    let body = response.into_string().map_err(|e| {
+        error!("读取响应内容失败: {}", e);
+        NetworkError::ParseFailed(e.to_string())
+    })?;
+
+    debug!("响应内容: {}", body);
+
+    let info = serde_json::from_str::<OnlineUserInfo>(&body).map_err(|e| {
+        error!("解析 JSON 响应失败: {}", e);
+        NetworkError::ParseFailed(e.to_string())
+    })?;
+
+    Ok(info)
+}
+
+/// 获取主机 IP 地址
+/// 返回值：
+/// - Ok(Some(ip)): 已登录，返回用户 IP
+/// - Ok(None): 未登录（userIp 为 null）
+/// - Err: 网络错误
+pub fn get_host_ip() -> NetworkResult<Option<String>> {
+    debug!("开始获取主机 IP 地址...");
+
+    let info = query_online_info()?;
+
+    match info.user_ip {
+        Some(ip) => {
+            info!("成功获取主机 IP: {}", ip);
+            Ok(Some(ip))
+        }
+        None => {
+            debug!("用户未登录校园网");
+            Ok(None)
+        }
+    }
+}
+
+/// 检查是否是连接错误（未联网）
+fn is_connection_error(err: &ureq::Error) -> bool {
+    match err {
+        ureq::Error::Transport(transport) => {
+            matches!(
+                transport.kind(),
+                ureq::ErrorKind::ConnectionFailed | ureq::ErrorKind::Dns
+            )
+        }
+        ureq::Error::Status(code, _) => *code == 0 || *code == 502 || *code == 504,
+    }
+}
+
+/// 检查网络连接状态
+/// 返回值：
+/// - Ok(true): 已连接且已登录
+/// - Ok(false): 未登录（网络可达但用户未登录）
+/// - Err: 网络错误（无法连接到校园网）
+///
+/// 若已登录且 `ip_status` 为 None，则将当前 IP 写入 `ip_status`，
+/// 用于在程序首次启动时就记录基准 IP，以便后续正确检测 IP 变化。
+pub fn check_network_connection(ip_status: &mut Option<String>) -> Result<bool, NetworkError> {
+    match get_host_ip() {
+        Ok(Some(ip)) => {
+            if ip_status.is_none() {
+                *ip_status = Some(ip);
+            }
+            Ok(true)
+        }
+        Ok(None) => Ok(false), // 未登录
+        Err(e) => Err(e),      // 网络错误
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mockito;
 
     #[test]
-    fn test_network_connection_success() {
-        let mut server = mockito::Server::new();
-        let mock = server
-            .mock("GET", "/")
-            .with_status(200)
-            .with_body("ok")
-            .create();
-        let result_mock = check_network_connection(Some(&server.url()), None);
-        assert!(result_mock.is_ok());
-        mock.assert();
-
-        let result_baidu = check_network_connection(Some("https://www.baidu.com"), None);
-        assert!(result_baidu.is_ok());
+    fn test_get_host_ip() {
+        let result = get_host_ip();
+        match result {
+            Ok(Some(ip)) => println!("获取到 IP: {}", ip),
+            Ok(None) => println!("未获取到 IP"),
+            Err(e) => println!("获取 IP 失败: {:?}", e),
+        }
     }
 
     #[test]
-    fn test_network_connection_failure() {
-        let mut server = mockito::Server::new();
-        server.mock("GET", "/").with_status(400).create();
+    fn get_online_user_info() {
+        use serde_json::Value;
 
-        let result = check_network_connection(Some(&server.url()), None);
+        let agent = ureq::agent();
 
-        assert!(result.is_err());
-    }
+        let response = agent.get(ONLINE_INFO_URL).call();
 
-    #[test]
-    fn test_network_connection_timeout() {
-        let result = check_network_connection(Some("http://192.0.2.1:9999"), Some(1));
-
-        assert!(result.is_err());
+        match response {
+            Ok(response) => {
+                let content = response.into_string();
+                match content {
+                    Ok(content) => {
+                        let json: Value =
+                            serde_json::from_str(&content).unwrap_or(Value::String(content));
+                        println!("{}", serde_json::to_string_pretty(&json).unwrap());
+                    }
+                    Err(e) => println!("解析响应体失败: {:?}", e),
+                }
+            }
+            Err(e) => println!("请求失败: {:?}", e),
+        }
     }
 }

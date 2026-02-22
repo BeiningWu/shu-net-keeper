@@ -232,6 +232,8 @@ receiver = "notify@example.com"
 
 ### Docker 部署
 
+> **平台说明**：Docker 镜像同时支持 `linux/amd64`（x86_64 服务器）和 `linux/arm64`（ARM64 服务器 / Apple Silicon Mac）。构建前请根据实际部署环境选择目标平台。
+
 #### 方式一：使用 Docker Compose（推荐）
 
 1. **准备配置文件**
@@ -252,6 +254,10 @@ receiver = "notify@example.com"
    services:
      shu-net-keeper:
        build: .
+       # 根据部署环境选择目标平台：
+       #   linux/amd64  —— x86_64 服务器
+       #   linux/arm64  —— ARM64 服务器 / Apple Silicon Mac
+       platform: linux/amd64
        # TODO: 可自定义容器名称
        container_name: shu-net-keeper
        restart: unless-stopped
@@ -280,8 +286,8 @@ receiver = "notify@example.com"
 #### 方式二：使用 Docker 命令
 
 ```bash
-# 构建镜像
-docker build -t shu-net-keeper .
+# 构建镜像（--platform 根据部署环境选择 linux/amd64 或 linux/arm64）
+docker build --platform linux/amd64 -t shu-net-keeper .
 
 # 创建日志目录
 mkdir -p logs
@@ -290,6 +296,7 @@ mkdir -p logs
 # 运行容器
 docker run -d \
   --name shu-net-keeper \
+  --platform linux/amd64 \
   --network host \
   --restart unless-stopped \
   -v $(pwd)/config.toml:/app/config.toml:ro \

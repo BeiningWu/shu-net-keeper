@@ -33,12 +33,12 @@ pub struct SmtpConfig {
     pub receiver: Option<String>,
 }
 
-// ✅ 验证后的配置（所有字段都不是 Option）
+// 验证后的配置（所有字段都不是 Option）
 pub struct APPConfigValidated {
     pub username: String,
     pub password: String,
     pub interval: u64,
-    pub smtp: Option<SmtpConfigValidated>, // ✅ 如果 enabled = false，这里是 None
+    pub smtp: Option<SmtpConfigValidated>, // 如果 enabled = false，这里是 None
 }
 
 pub struct SmtpConfigValidated {

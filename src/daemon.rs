@@ -35,12 +35,9 @@ pub fn run(config: APPConfigValidated) -> Result<()> {
 }
 
 /// 检查网络并处理登录
-fn check_and_handle_network(
-    config: &APPConfigValidated,
-    state: &mut DaemonState,
-) -> Result<()> {
-    // 1. 检查网络连接
-    if core::network::check_network_connection(None, None).is_ok() {
+fn check_and_handle_network(config: &APPConfigValidated, state: &mut DaemonState) -> Result<()> {
+    // 1. 检查网络连接（已连接时顺带初始化 ip_status）
+    if core::network::check_network_connection(&mut state.last_ip_address)? {
         return Ok(());
     }
 
@@ -52,8 +49,8 @@ fn check_and_handle_network(
     // 3. 获取当前 IP
     let current_ip = get_current_ip();
 
-    // 4. 检测 IP 变化
-    let ip_changed = state.last_ip_address.as_ref() != Some(&current_ip);
+    // 4. 检测 IP 变化（last_ip_address 为 None 表示首次登录，不视为 IP 变化）
+    let ip_changed = matches!(&state.last_ip_address, Some(old) if old != &current_ip);
 
     // 5. 发送邮件通知
     if let Some(smtp) = &config.smtp {
@@ -67,7 +64,7 @@ fn check_and_handle_network(
 }
 
 fn get_current_ip() -> String {
-    core::report::get_host_ip()
+    core::network::get_host_ip()
         .ok()
         .flatten()
         .unwrap_or_else(|| {
@@ -93,18 +90,21 @@ fn send_notification(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
-    fn test_daemon_state_creation() {
-        let state = DaemonState::new();
-        assert!(state.last_ip_address.is_none());
-    }
+    fn test_ip_changed_logic() {
+        let current_ip = "192.168.1.1".to_string();
 
-    #[test]
-    fn test_get_current_ip_fallback() {
-        // 测试 IP 获取（可能成功或失败）
-        let ip = get_current_ip();
-        assert!(!ip.is_empty());
+        // 首次登录（None）：不应视为 IP 变化
+        let last: Option<String> = None;
+        assert!(!matches!(&last, Some(old) if old != &current_ip));
+
+        // 相同 IP：不应视为 IP 变化
+        let last = Some("192.168.1.1".to_string());
+        assert!(!matches!(&last, Some(old) if old != &current_ip));
+
+        // IP 变化：应视为 IP 变化
+        let last = Some("10.0.0.1".to_string());
+        assert!(matches!(&last, Some(old) if old != &current_ip));
     }
 }
