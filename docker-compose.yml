@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   shu-net-keeper:
+    image: shu-net-keeper
     build:
       context: .
       dockerfile: Dockerfile
@@ -17,7 +18,7 @@ services:
     # 挂载配置文件和日志目录
     volumes:
       # 确保正确填写config.toml的路径，并不要随意删除。
-      - /Volumes/ZHITAI-Ti600-4TB/shu-net-keeper/config.toml:/app/config.toml:ro  # 只读挂载配置文件
+      - ./config.toml:/app/config.toml:ro  # 只读挂载配置文件
       - ./logs:/app/logs                    # 日志目录
 
     # 环境变量
