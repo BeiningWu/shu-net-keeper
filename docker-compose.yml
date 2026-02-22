@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   shu-net-keeper:
     image: shu-net-keeper

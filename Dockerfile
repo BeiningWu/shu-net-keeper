@@ -7,9 +7,6 @@ ARG TARGETARCH
 # 安装构建依赖
 RUN apk add --no-cache \
     musl-dev \
-    openssl-dev \
-    openssl-libs-static \
-    pkgconfig \
     linux-headers \
     gcc \
     make
