@@ -84,20 +84,13 @@ mod tests {
     fn test_encrypt_password() {
         let encryptor = PasswordEncryptor::new().unwrap();
 
-        // 测试1: 模拟密码+MAC格式
+        // 测试: 模拟密码+MAC格式
         let password1 = "testPassword123>aabbccddeeff";
         let encrypted1 = encryptor.encrypt_password(password1).unwrap();
+        let encrypted1_tgt ="71292489a26b05325b8498d89cc4381a02712b3c6d7c5a57f032e9a65578e66b1131b508f163cfb0dcc920439cb229302ddda8034aeca055a89f9fdb026f5f3ba64d4885f4c332621949cdfe8c2cfae2a736b55585823e2e1082f236c9f0def4bd3987b1e90a54cc710832ad61b6951311e223638a3cc5fd8f11c78b50c07318".to_string();
 
-        // 测试2: 更长的密码
-        let password2 = "anotherTestPassword456!";
-        let encrypted2 = encryptor.encrypt_password(password2).unwrap();
-
-        // 验证输出格式
+        // 验证输出结果
         assert!(!encrypted1.is_empty());
-        assert!(!encrypted2.is_empty());
-
-        // 验证确定性：相同输入应产生相同输出
-        let encrypted1_again = encryptor.encrypt_password(password1).unwrap();
-        assert_eq!(encrypted1, encrypted1_again, "加密应该是确定性的");
+        assert_eq!(encrypted1,encrypted1_tgt)
     }
 }

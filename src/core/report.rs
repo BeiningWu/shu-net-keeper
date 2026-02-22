@@ -69,4 +69,27 @@ mod tests {
             Err(e) => println!("获取 IP 失败: {:?}", e),
         }
     }
+
+    #[test]
+    fn get_online_user_info() {
+        use serde_json::Value;
+
+        let agent = ureq::agent();
+
+        let response = agent.get(ONLINE_INFO_URL).call();
+
+        match response {
+            Ok(response) => {
+                let content = response.into_string();
+                match content {
+                    Ok(content) => {
+                        let json: Value = serde_json::from_str(&content).unwrap_or(Value::String(content));
+                        println!("{}", serde_json::to_string_pretty(&json).unwrap());
+                    }
+                    Err(e) => println!("解析响应体失败: {:?}", e),
+                }
+            }
+            Err(e) => println!("请求失败: {:?}", e),
+        }
+    }
 }
