@@ -151,7 +151,9 @@ fn extract_url_from_script(html: &str) -> LoginResult<String> {
         LoginError::UrlParse(e.to_string())
     })?;
 
-    if let Some(caps) = re.captures(html) && let Some(url) = caps.get(1) {
+    if let Some(caps) = re.captures(html)
+        && let Some(url) = caps.get(1)
+    {
         debug!("成功从 HTML 中提取登录页 URL");
         return Ok(url.as_str().to_string());
     }
@@ -159,9 +161,7 @@ fn extract_url_from_script(html: &str) -> LoginResult<String> {
     // 如果没有找到JavaScript重定向，检查是否已经在登录成功页面
     if html.contains("success") || html.contains("成功") {
         warn!("HTML 中包含成功标识，可能已经登录");
-        return Err(LoginError::QueryString(
-            "页面显示已登录或成功".to_string(),
-        ));
+        return Err(LoginError::QueryString("页面显示已登录或成功".to_string()));
     }
 
     warn!("未在 HTML 中找到登录页 URL");
@@ -179,7 +179,9 @@ fn extract_query_string(url: &str) -> LoginResult<String> {
 /// 从 queryString 中提取 mac 字段
 fn extract_mac_from_query_string(query_string: &str) -> LoginResult<String> {
     for pair in query_string.split('&') {
-        if let Some((key, value)) = pair.split_once('=') && key == "mac" {
+        if let Some((key, value)) = pair.split_once('=')
+            && key == "mac"
+        {
             return Ok(value.to_string());
         }
     }
