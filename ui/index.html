@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SHU Net Keeper</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- ── Header ────────────────────────────────────────────────────── -->
+    <header class="header">
+      <div class="header-left">
+        <span class="logo">🌐</span>
+        <span class="app-name">SHU Net Keeper</span>
+      </div>
+      <div class="header-right">
+        <span id="status-badge" class="badge badge-idle">未运行</span>
+      </div>
+    </header>
+
+    <!-- ── Body ──────────────────────────────────────────────────────── -->
+    <div class="body">
+
+      <!-- Left: Config + Status -->
+      <div class="left-panel">
+
+        <!-- Config -->
+        <section class="panel-section">
+          <div class="section-header">⚙️ 配置</div>
+          <form id="config-form" autocomplete="off">
+            <div class="section-title">登录账号</div>
+            <div class="form-row">
+              <label>学号 <span class="hint">（8位数字）</span></label>
+              <input id="username" type="text" maxlength="8" placeholder="12345678" />
+            </div>
+            <div class="form-row">
+              <label>密码</label>
+              <div class="pw-wrap">
+                <input id="password" type="password" placeholder="校园网密码" />
+                <button type="button" class="pw-toggle" onclick="togglePw('password',this)" title="查看/隐藏密码">
+                  <svg class="eye-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="eye-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>检查间隔 <span class="hint">（秒，默认 600）</span></label>
+              <input id="interval" type="number" min="10" max="3600" placeholder="600" />
+            </div>
+
+            <div class="section-title" style="margin-top:18px;">
+              邮件通知
+              <label class="toggle-label">
+                <input id="smtp-enabled" type="checkbox" />
+                <span class="toggle"></span>
+              </label>
+            </div>
+            <div id="smtp-fields" class="hidden">
+              <div class="form-row">
+                <label>SMTP 服务器</label>
+                <input id="smtp-server" type="text" placeholder="smtp.qq.com" />
+              </div>
+              <div class="form-row">
+                <label>SMTP 端口</label>
+                <input id="smtp-port" type="number" placeholder="465" />
+              </div>
+              <div class="form-row">
+                <label>发件人邮箱</label>
+                <input id="smtp-sender" type="email" placeholder="you@qq.com" />
+              </div>
+              <div class="form-row">
+                <label>SMTP 密码 / 授权码</label>
+                <div class="pw-wrap">
+                  <input id="smtp-password" type="password" placeholder="授权码" />
+                  <button type="button" class="pw-toggle" onclick="togglePw('smtp-password',this)" title="查看/隐藏密码">
+                    <svg class="eye-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="eye-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="form-row">
+                <label>接收邮箱</label>
+                <input id="smtp-receiver" type="email" placeholder="notify@example.com" />
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" id="btn-save" class="btn btn-primary">💾 保存</button>
+              <span id="save-msg" class="save-msg"></span>
+            </div>
+          </form>
+        </section>
+
+        <!-- Status -->
+        <section class="panel-section">
+          <div class="section-header">📡 状态</div>
+
+          <div class="status-indicator">
+            <div id="conn-dot" class="conn-dot dot-idle"></div>
+            <div>
+              <div id="conn-label" class="conn-label">未运行</div>
+              <div id="conn-ip" class="conn-ip">—</div>
+            </div>
+          </div>
+
+          <div class="metrics">
+            <div class="metric">
+              <div class="metric-value" id="metric-logins">0</div>
+              <div class="metric-label">登录次数</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="metric-last-check">—</div>
+              <div class="metric-label">上次检查</div>
+            </div>
+          </div>
+
+          <div id="error-box" class="error-box hidden"></div>
+
+          <div class="daemon-controls">
+            <button id="btn-start" class="btn btn-success">▶ 启动守护</button>
+            <button id="btn-stop" class="btn btn-danger hidden">⏹ 停止守护</button>
+          </div>
+        </section>
+
+      </div><!-- /left-panel -->
+
+      <!-- Right: Logs -->
+      <div class="right-panel">
+        <div class="section-header logs-header">
+          📋 日志
+          <div class="logs-toolbar">
+            <button id="btn-clear-logs" class="btn btn-sm">🗑 清空</button>
+            <label class="auto-scroll-label">
+              <input id="auto-scroll" type="checkbox" checked />
+              自动滚动
+            </label>
+          </div>
+        </div>
+        <div id="log-container" class="log-container">
+          <div class="log-placeholder">暂无日志</div>
+        </div>
+      </div>
+
+    </div><!-- /body -->
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

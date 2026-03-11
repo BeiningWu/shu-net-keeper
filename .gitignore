@@ -3,3 +3,9 @@
 .claude
 .cargo
 .idea
+CLAUDE.md
+logs
+
+# Tauri
+src-tauri/target
+src-tauri/gen

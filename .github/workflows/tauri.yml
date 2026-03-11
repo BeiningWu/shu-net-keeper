@@ -1,0 +1,109 @@
+name: Tauri GUI Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-tauri:
+    name: Build GUI (${{ matrix.platform }})
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-x86_64
+            runs-on: windows-latest
+            target: x86_64-pc-windows-msvc
+          - platform: macos-aarch64
+            runs-on: macos-latest
+            target: aarch64-apple-darwin
+          - platform: macos-x86_64
+            runs-on: macos-13          # last Intel runner
+            target: x86_64-apple-darwin
+          - platform: linux-x86_64
+            runs-on: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Linux: install WebKitGTK (required by Tauri on Linux)
+      - name: Install Linux dependencies
+        if: matrix.runs-on == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          key: tauri-${{ matrix.platform }}
+
+      - name: Add Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      # Build Tauri app (runs inside src-tauri/)
+      - name: Build Tauri app
+        run: cargo tauri build --target ${{ matrix.target }}
+
+      # ── Upload platform-specific artifacts ────────────────────────────────
+
+      - name: Upload Windows installer
+        if: matrix.runs-on == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-${{ matrix.platform }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+      - name: Upload macOS bundle
+        if: startsWith(matrix.runs-on, 'macos')
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-${{ matrix.platform }}
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+      - name: Upload Linux bundle
+        if: matrix.runs-on == 'ubuntu-22.04'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-${{ matrix.platform }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
+            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+
+  release-tauri:
+    name: Publish GUI to Release
+    needs: build-tauri
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all GUI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: gui-artifacts
+          merge-multiple: true
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: gui-artifacts/**/*
+          generate_release_notes: false

@@ -1,0 +1,23 @@
+[package]
+name = "shu-net-keeper-gui"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "shu_net_keeper_gui_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "shu-net-keeper-gui"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-store = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = "0.4"
+shu-net-keeper = { path = ".." }

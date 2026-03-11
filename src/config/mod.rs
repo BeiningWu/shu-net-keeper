@@ -3,7 +3,8 @@ mod types;
 mod validation;
 
 pub use loader::load_config;
-pub use types::{APPConfigValidated, SmtpConfigValidated};
+pub use types::{APPConfig, APPConfigValidated, SmtpConfig, SmtpConfigValidated};
+pub use validation::validate_config;
 
 #[cfg(test)]
 mod tests {
