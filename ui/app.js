@@ -1,3 +1,7 @@
+function openGitHub() {
+  window.__TAURI__.opener.openUrl('https://github.com/BeiningWu/shu-net-keeper');
+}
+
 function togglePw(inputId, btn) {
   const input = document.getElementById(inputId);
   const isHidden = input.type === 'password';
@@ -186,11 +190,25 @@ function togglePw(inputId, btn) {
   await listen("status-update", (e) => applyStatus(e.payload));
   await listen("log-entry",     (e) => appendLog(e.payload));
 
+  // ── Autostart ────────────────────────────────────────────────────────────
+
+  const autostartToggle = document.getElementById("autostart-toggle");
+
+  autostartToggle.addEventListener("change", async () => {
+    try {
+      await invoke("set_autostart", { enabled: autostartToggle.checked });
+    } catch (e) {
+      autostartToggle.checked = !autostartToggle.checked; // 回滚
+      alert("设置开机自启失败: " + String(e));
+    }
+  });
+
   // ── Init ─────────────────────────────────────────────────────────────────
 
   await loadConfig();
   await refreshStatus();
   await loadLogs();
+  try { autostartToggle.checked = await invoke("get_autostart"); } catch (_) {}
 
   setInterval(refreshStatus, 5000);
 })();

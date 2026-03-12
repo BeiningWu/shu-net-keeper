@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_store::StoreExt;
 
 const STORE_FILE: &str = "settings.json";
@@ -275,10 +276,29 @@ fn get_logs(state: State<'_, AppState>) -> Vec<String> {
     state.logs.lock().unwrap().clone()
 }
 
+#[tauri::command]
+fn get_autostart(app_handle: AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    app_handle.autolaunch().is_enabled().unwrap_or(false)
+}
+
+#[tauri::command]
+fn set_autostart(app_handle: AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let al = app_handle.autolaunch();
+    if enabled {
+        al.enable().map_err(|e| e.to_string())
+    } else {
+        al.disable().map_err(|e| e.to_string())
+    }
+}
+
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
             app.manage(AppState {
@@ -353,6 +373,8 @@ pub fn run() {
             stop_daemon,
             get_status,
             get_logs,
+            get_autostart,
+            set_autostart,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

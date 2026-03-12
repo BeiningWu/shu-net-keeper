@@ -2,12 +2,12 @@ name: Release
 
 on:
   push:
-    branches: [ "main" ]
-    # 监听 Tag 推送：只有推送类似 v1.0.0 的 tag 时，才会触发最后的 Release 发布
+    # 所有分支都触发 check；只有 v*.*.* tag 时才触发 release
     tags:
       - "v*.*.*"
+    branches:
+      - "**"
   pull_request:
-    branches: [ "main" ]
 
 env:
   CARGO_TERM_COLOR: always

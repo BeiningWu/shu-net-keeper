@@ -3,7 +3,9 @@ mod types;
 mod validation;
 
 pub use loader::load_config;
+#[allow(unused_imports)]
 pub use types::{APPConfig, APPConfigValidated, SmtpConfig, SmtpConfigValidated};
+#[allow(unused_imports)]
 pub use validation::validate_config;
 
 #[cfg(test)]

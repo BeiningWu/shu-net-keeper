@@ -52,8 +52,20 @@ body {
   flex-shrink: 0;
 }
 .header-left { display: flex; align-items: center; gap: 8px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
 .logo { font-size: 18px; }
 .app-name { font-weight: 600; font-size: 15px; }
+.oss-link {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 500;
+  color: var(--text-sub);
+  text-decoration: none;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  transition: color .15s, border-color .15s;
+}
+.oss-link:hover { color: var(--text); border-color: #94a3b8; }
 
 .badge {
   font-size: 12px;
@@ -298,6 +310,23 @@ body {
   display: flex;
   gap: 10px;
 }
+.autostart-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.oss-footer {
+  margin-top: auto;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-sub);
+}
+.oss-footer a { color: var(--primary); text-decoration: none; }
+.oss-footer a:hover { text-decoration: underline; }
 
 /* ── Logs (right panel) ───────────────────────────────────────────────────── */
 .logs-header {

@@ -5,15 +5,14 @@ use std::time::Duration;
 use tracing::{error, info, warn};
 
 /// 守护进程状态
+#[derive(Default)]
 pub struct DaemonState {
     last_ip_address: Option<String>,
 }
 
 impl DaemonState {
     pub fn new() -> Self {
-        Self {
-            last_ip_address: None,
-        }
+        Self::default()
     }
 }
 
