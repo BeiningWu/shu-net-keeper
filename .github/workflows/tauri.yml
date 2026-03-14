@@ -23,7 +23,7 @@ jobs:
             runs-on: macos-latest
             target: aarch64-apple-darwin
           - platform: macos-x86_64
-            runs-on: macos-13          # last Intel runner
+            runs-on: macos-latest      # cross-compile x86_64 on Apple Silicon
             target: x86_64-apple-darwin
           - platform: linux-x86_64
             runs-on: ubuntu-22.04
